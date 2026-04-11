@@ -14,8 +14,6 @@ from pathlib import Path
 
 import click
 
-PLACEHOLDERS = ("{{COURSE_NAME}}", "{{COURSE_TITLE}}", "{{COURSE_SUBTITLE}}")
-
 
 def copy_template(template_subdir: str, dest: Path) -> None:
     src_ref = files("material_core") / "templates" / template_subdir

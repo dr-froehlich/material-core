@@ -1,0 +1,20 @@
+project:
+  type: default
+  output-dir: _output
+
+format:
+  html:
+    theme:
+      - cosmo
+      - ../shared/base.scss
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    smooth-scroll: true
+  orange-book-typst:
+    output-file: {{DOC_NAME}}.pdf
+    number-sections: true
+    toc: true
+    toc-depth: 2
+    template-partials:
+      - ../shared/typst-show.typ

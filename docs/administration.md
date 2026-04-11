@@ -188,8 +188,19 @@ rebuilt only when at least one changed file lives under `<name>/`. Changes to
 push). An unrelated edit (top-level README, docs, etc.) builds nothing — the
 `build` matrix is guarded by `if: needs.changes.outputs.projects != '[]'`.
 
-`matctl course add` (REQ-004) and `matctl doc add` (REQ-005) will patch this
-file automatically. Until those land, hand-edit it as shown in §6.2.
+`matctl course add` and `matctl doc add` patch this file automatically.
+
+### 5.2 Project types: course vs. doc
+
+| Type | Structure | Render | Deploy |
+|------|-----------|--------|--------|
+| `course` | Multi-chapter Quarto book + RevealJS slides sub-project | `quarto render <name>` + `quarto render <name>/slides` | `<name>/_output/book/*` → webroot; `<name>/slides/_output/*` → `<webroot>/slides/` |
+| `doc` | Single `index.qmd`, flat `assets/` | `quarto render <name>` only | `<name>/_output/*` → webroot (no `book/` infix) |
+
+Choose **`course`** when the project has multiple chapters, a book-level TOC,
+and accompanying slides. Choose **`doc`** for single-file or small flat
+publications — technical guides, reference documents, one-off write-ups — that
+don't need slides or chapter navigation.
 
 ---
 
@@ -241,7 +252,7 @@ matctl course remove <course> --yes    # no prompt, for scripting
 - Remote content at `material.professorfroehlich.de/<course>/` — delete via
   SSH or let it become a dead link.
 - Cloudflare Worker KV tokens issued against the removed course — they become
-  dead keys. Revoke them with `matctl token revoke <token>` (§7.3) if you want
+  dead keys. Revoke them with `matctl token revoke <token>` (§8.3) if you want
   to clean up KV.
 
 ### 6.3 First publish after adding a course
@@ -254,17 +265,68 @@ git push
 
 Watch the run under GitHub → Actions. On success the course is live at
 `https://material.professorfroehlich.de/<course>/` — but locked behind the
-Worker until a token is issued (§7).
+Worker until a token is issued (§8).
 
 ---
 
-## 7. Token Management
+## 7. Document Lifecycle
+
+Replace `<name>` with the kebab-case document slug throughout.
+
+### 7.1 Adding a document
+
+Run from inside the `material` checkout:
+
+```bash
+matctl doc add <name> --title "Human Readable Title"
+```
+
+`matctl doc add` does three things in order:
+
+1. Copies `material_core/templates/doc/` → `./<name>/`, substituting the
+   declared `{{DOC_NAME}}` and `{{DOC_TITLE}}` tokens throughout the tree.
+2. Appends `{name: <name>, type: doc}` to `projects.yml` using `ruamel.yaml`
+   in round-trip mode.
+3. Prints next-step hints (preview, commit, push).
+
+Optional flags:
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--title "..."` | `<name>` title-cased | Sets the document title |
+
+### 7.2 Removing a document
+
+```bash
+matctl doc remove <name>          # prompts for confirmation
+matctl doc remove <name> --yes    # no prompt, for scripting
+```
+
+`doc remove` removes the manifest entry from `projects.yml` and deletes
+`./<name>/` from disk. Remote content must be cleaned up manually (same
+caveats as §6.2).
+
+### 7.3 First publish after adding a document
+
+```bash
+git add <name>/ projects.yml
+git commit -m "Add doc: <name>"
+git push
+```
+
+Watch the run under GitHub → Actions. The `build` matrix resolves
+`PROJECT_TYPE=doc`, runs `quarto render <name>` (no slides step), and
+deploys `<name>/_output/*` flat to the webroot.
+
+---
+
+## 8. Token Management
 
 All commands read credentials from `material_core/scripts/.env` inside the
 package (env vars `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_KV_NAMESPACE_ID`).
 Process environment variables take precedence if set.
 
-### 7.1 Issue a token
+### 8.1 Issue a token
 
 ```bash
 matctl token issue <course> "<label>" [--days 365]
@@ -286,7 +348,7 @@ https://material.professorfroehlich.de/<course>/?token=<TOKEN>
 Paste that link into the iLearn course. Students who follow it once receive a
 1-year session cookie and can bookmark the clean URL.
 
-### 7.2 List tokens
+### 8.2 List tokens
 
 ```bash
 matctl token list                  # all tokens
@@ -295,7 +357,7 @@ matctl token list <course>         # filtered
 
 Expired tokens are flagged `[EXPIRED]` but remain in KV until revoked.
 
-### 7.3 Revoke a token
+### 8.3 Revoke a token
 
 ```bash
 matctl token revoke <token>
@@ -307,7 +369,7 @@ that **already-issued session cookies remain valid until they expire** (up to
 re-auth, rotate `COOKIE_SECRET` in the Worker variables: every existing cookie
 becomes invalid on next request.
 
-### 7.4 Show token metadata
+### 8.4 Show token metadata
 
 ```bash
 matctl token show <token>

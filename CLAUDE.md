@@ -25,7 +25,8 @@ material-core/
     shared/                    — SCSS, fonts, logo, diagram assets
     cloudflare/worker.js       — token-validating access Worker
     scripts/.env               — Cloudflare credentials (gitignored; read by matctl token)
-    templates/course/          — scaffolding template (was _template/ in vorlesungen)
+    templates/course/          — course scaffolding template
+    templates/doc/             — standalone document scaffolding template
   docs/
     administration.md          — ops reference (arch, deploy, tokens)
     authoring.md               — Quarto authoring reference for content authors
@@ -44,6 +45,10 @@ material-core/
   new course from the template and register it in `projects.yml`.
 - `matctl course remove <name> [--yes]` — remove the course directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
+- `matctl doc add <name> [--title "..."]` — scaffold a new standalone document
+  (single `index.qmd`, no slides) and register it in `projects.yml`.
+- `matctl doc remove <name> [--yes]` — remove the document directory and
+  manifest entry (remote content must be cleaned up manually).
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
   it to Cloudflare KV, and print the ready-to-paste iLearn URL.
 - `matctl token list [<course>]` — table of all tokens (or filtered to one
@@ -57,7 +62,7 @@ material-core/
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.3.0"
+pipx install "git+https://github.com/pfroehlich/material-core@v0.4.0"
 matctl link
 quarto render <course>
 ```
@@ -90,4 +95,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 OPEN (standalone doc support — shares `_projects.py`/`_scaffold.py` from REQ-004). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`).
