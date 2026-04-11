@@ -2,12 +2,30 @@
 
 from __future__ import annotations
 
+import re
+import shutil
 from importlib.resources import files
 from pathlib import Path
 
 import click
 
+from ._projects import (
+    PROJECTS_FILE,
+    add_project,
+    load_manifest,
+    project_names,
+    remove_project,
+    save_manifest,
+)
+from ._scaffold import (
+    copy_template,
+    substitute_placeholders,
+    title_case_from_slug,
+)
+
 LINK_TARGETS = ("_brand.yml", "shared")
+
+_NAME_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 
 
 def _package_root() -> Path:
@@ -63,23 +81,103 @@ def unlink() -> None:
             click.echo(f"skipped {name} (not a symlink)")
 
 
-@main.command()
-def render() -> None:
-    """Build courses (REQ-002)."""
-    raise NotImplementedError("matctl render is planned for REQ-002")
+@main.group()
+def course() -> None:
+    """Manage courses in a material checkout."""
 
 
-@main.command()
-def deploy() -> None:
-    """Deploy built courses (REQ-002)."""
-    raise NotImplementedError("matctl deploy is planned for REQ-002")
-
-
-@main.command()
+@course.command("add")
 @click.argument("name")
-def new(name: str) -> None:
-    """Scaffold a new course or document (REQ-002)."""
-    raise NotImplementedError("matctl new is planned for REQ-002")
+@click.option(
+    "--title",
+    default=None,
+    help="Human-readable title (default: <name> title-cased).",
+)
+@click.option(
+    "--subtitle",
+    default="",
+    help="Optional subtitle (default: empty).",
+)
+def course_add(name: str, title: str | None, subtitle: str) -> None:
+    """Scaffold a new course and register it in projects.yml."""
+    if not _NAME_RE.fullmatch(name):
+        raise click.ClickException(
+            f"invalid course name {name!r}: must match [a-z0-9][a-z0-9._-]*"
+        )
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    doc = load_manifest(manifest_path)
+    if name in project_names(doc):
+        raise click.ClickException(
+            f"{name} already registered in {PROJECTS_FILE}"
+        )
+    dest = cwd / name
+    if dest.exists():
+        raise click.ClickException(f"{dest} already exists")
+
+    resolved_title = title or title_case_from_slug(name)
+
+    copy_template("course", dest)
+    substitute_placeholders(
+        dest,
+        {
+            "{{COURSE_NAME}}": name,
+            "{{COURSE_TITLE}}": resolved_title,
+            "{{COURSE_SUBTITLE}}": subtitle,
+        },
+    )
+    add_project(doc, name, "course")
+    save_manifest(manifest_path, doc)
+
+    click.echo(f"created course {name} (title: {resolved_title!r})")
+    click.echo("next steps:")
+    click.echo(f"  quarto preview {name}")
+    click.echo(f"  git add {name}/ {PROJECTS_FILE}")
+    click.echo(f"  git commit -m 'Add course: {name}'")
+    click.echo("  git push")
+
+
+@course.command("remove")
+@click.argument("name")
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt.")
+def course_remove(name: str, yes: bool) -> None:
+    """Remove a course from the manifest and delete its directory."""
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    doc = load_manifest(manifest_path)
+
+    dest = cwd / name
+    dir_exists = dest.exists()
+    in_manifest = name in project_names(doc)
+
+    if not dir_exists and not in_manifest:
+        raise click.ClickException(
+            f"nothing to remove: {name} is not in {PROJECTS_FILE} "
+            f"and {dest} does not exist"
+        )
+
+    if dir_exists and not yes:
+        if not click.confirm(
+            f"delete directory {dest} (this is irreversible)?",
+            default=False,
+        ):
+            raise click.ClickException("aborted")
+
+    removed = []
+    if in_manifest:
+        remove_project(doc, name)
+        save_manifest(manifest_path, doc)
+        removed.append(f"{PROJECTS_FILE} entry")
+    if dir_exists:
+        shutil.rmtree(dest)
+        removed.append(f"directory ./{name}/")
+
+    click.echo(f"removed: {', '.join(removed)}")
+    click.echo(
+        "note: remote content at material.professorfroehlich.de/"
+        f"{name}/ and any issued access tokens are NOT touched by this "
+        "command — see docs/administration.md for manual cleanup."
+    )
 
 
 if __name__ == "__main__":
