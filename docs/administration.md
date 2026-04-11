@@ -194,42 +194,58 @@ file automatically. Until those land, hand-edit it as shown in §6.2.
 
 ---
 
-## 6. Adding a New Course
+## 6. Course Lifecycle
 
 Replace `<course>` with the kebab-case course slug throughout.
 
-### 6.1 Scaffold the course
+### 6.1 Adding a course
+
+Run from inside the `material` checkout:
 
 ```bash
-./new-course.sh <course>
+matctl course add <course> --title "Human Readable Title"
 ```
 
-Then edit:
+`matctl course add` does three things in order:
 
-- `<course>/_quarto.yml` — set `title`, `lang`, and
-  `format.orange-book-typst.output-file: <course>.pdf`
-- `<course>/slides/_quarto.yml` — set the footer text
+1. Copies `material_core/templates/course/` → `./<course>/`, substituting the
+   declared `{{COURSE_NAME}}`, `{{COURSE_TITLE}}`, and `{{COURSE_SUBTITLE}}`
+   tokens throughout the tree.
+2. Appends `{name: <course>, type: course}` to `projects.yml` using
+   `ruamel.yaml` in round-trip mode, so any hand-added comments or ordering
+   survive. The manifest schema is described in §5.1.
+3. Prints next-step hints (preview, commit, push).
 
-### 6.2 Register the course in `projects.yml`
+No other files need editing — `.github/workflows/publish.yml` reads
+`projects.yml` at CI time and fans out a `build` matrix over every registered
+project automatically.
 
-Add a one-line entry to `material/projects.yml`:
+Optional flags:
 
-```yaml
-projects:
-  - name: digital-und-mikrocomputertechnik
-    type: course
-  - name: <course>          # ← add
-    type: course
+| Flag | Default | Purpose |
+|---|---|---|
+| `--title "..."` | `<course>` title-cased | Sets the book title and slide footer |
+| `--subtitle "..."` | empty | Sets the book subtitle; empty = no subtitle shown |
+
+### 6.2 Removing a course
+
+```bash
+matctl course remove <course>          # prompts for confirmation
+matctl course remove <course> --yes    # no prompt, for scripting
 ```
 
-That is the only file you touch. `.github/workflows/publish.yml` reads the
-manifest at CI time and fans out a `build` matrix over every project; no
-workflow edits are needed, ever, to add a course.
+`course remove` removes the manifest entry from `projects.yml` and deletes
+`./<course>/` from disk.
 
-Future: `matctl course add <course>` (REQ-004) will patch `projects.yml` and
-scaffold the directory in one step. Until that lands, hand-edit the manifest.
+**What it does NOT touch** — you must handle these manually:
 
-### 6.3 First publish
+- Remote content at `material.professorfroehlich.de/<course>/` — delete via
+  SSH or let it become a dead link.
+- Cloudflare Worker KV tokens issued against the removed course — they become
+  dead keys. Revoke them with `scripts/manage-tokens.sh revoke <token>` (§7.3)
+  if you want to clean up KV.
+
+### 6.3 First publish after adding a course
 
 ```bash
 git add <course>/ projects.yml

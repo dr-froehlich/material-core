@@ -35,26 +35,22 @@ material-core/
 
 ## matctl CLI
 
-Real commands:
-
 - `matctl link` — symlink `_brand.yml` and `shared/` from this package into the
   current working directory. Intended to be run from inside a `material`
   checkout. With `pipx install --editable`, symlinks resolve into the live
   source tree, so SCSS edits are immediately visible to `quarto preview`.
 - `matctl unlink` — remove the symlinks.
-
-Stubs (raise `NotImplementedError`, implemented in REQ-002):
-
-- `matctl render`
-- `matctl deploy`
-- `matctl new`
+- `matctl course add <name> [--title "..."] [--subtitle "..."]` — scaffold a
+  new course from the template and register it in `projects.yml`.
+- `matctl course remove <name> [--yes]` — remove the course directory and
+  manifest entry (remote content and KV tokens must be cleaned up manually).
 
 ## How this repo is consumed
 
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.1.0"
+pipx install "git+https://github.com/pfroehlich/material-core@v0.2.0"
 matctl link
 quarto render <course>
 ```
@@ -87,4 +83,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 (repository split) in progress. Phase 1–2 complete.
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 OPEN (standalone doc support — shares `_projects.py`/`_scaffold.py` from REQ-004).
