@@ -476,44 +476,69 @@ Press `S` in the published deck to open the presenter view.
 
 ---
 
-## 12. Standalone documents (not part of the book)
+## 12. Companion documents inside a course (e.g. cheat sheets, survival guides)
 
-Some documents — e.g. the *ESP Survival Guide* — should be published
-alongside a course but not appear as a chapter in the script. Pattern:
+A document like a formula collection or hardware survival guide can live
+**inside** the course project — compiled by the same `quarto render`, placed
+in the same output folder, and therefore covered by the same access token —
+without appearing as a chapter in the book's sidebar.
 
-1. **Place the file outside `chapters/`**, for example
-   `<course>/esp-survival-guide.qmd` or under a `reference/` sub-folder.
-2. **Do not list it** under `book.chapters` in `<course>/_quarto.yml`. Quarto
-   still renders any loose `.qmd` in the project, but it will not appear in
-   the book's sidebar/TOC.
-3. **Override book defaults in the file's front matter:**
+In a Quarto book project, **only files listed under `book.chapters` are
+rendered by default.** To render additional files without adding them to the
+TOC, list them explicitly under `project.render`:
 
-   ```yaml
-   ---
-   title: "ESP Survival Guide"
-   toc: false
-   number-sections: false
-   format:
-     html:
-       toc: false
-     orange-book-typst:
-       toc: false
-       number-sections: false
-   ---
-   ```
+```yaml
+# <course>/_quarto.yml
+project:
+  type: book
+  output-dir: _output/book
+  render:
+    - "**/*.qmd"          # or list files individually
 
-4. **Link to it from the book** wherever you want to advertise it:
+book:
+  chapters:
+    - index.qmd
+    - chapters/week-01.qmd
+    # esp-survival-guide.qmd is NOT listed here
+```
 
-   ```markdown
-   See the [ESP Survival Guide](../esp-survival-guide.html) for hardware setup.
-   ```
+Then **override book defaults** in the companion file's front matter so it
+renders as a self-contained page rather than a mid-book chapter:
 
-5. **Build:** `quarto render <course>` renders both the book and the
-   standalone document into `<course>/_output/`. The deploy step copies the
-   whole tree, so the standalone document ships automatically — no workflow
-   change needed.
+```yaml
+---
+title: "ESP Survival Guide"
+toc: true
+number-sections: false
+format:
+  html:
+    toc: true
+  orange-book-typst:
+    toc: true
+    number-sections: false
+---
+```
 
-If a standalone document needs entirely different format settings (e.g. a
-different page size or no branding), the next step up is to give it its own
-sub-project: a `<course>/reference/_quarto.yml` with `project.type: default`
-and an extra `quarto render` line in the workflow.
+**Link to it from within the book** wherever relevant:
+
+```markdown
+See the [ESP Survival Guide](../esp-survival-guide.html) for hardware setup.
+```
+
+**Build:** `quarto render <course>` compiles the book *and* the companion
+document into `<course>/_output/book/`. The deploy step copies the whole tree,
+so the companion ships automatically and shares the course's access token —
+no extra token management needed.
+
+---
+
+### When to use a separate project instead
+
+Use a separate project (`matctl doc add`) when the document:
+
+- is published independently of any course (no token relationship needed), or
+- needs a different format profile (different page size, no shared branding), or
+- will be reused across multiple courses.
+
+`matctl doc add` creates a full standalone Quarto project with its own
+`_quarto.yml`, its own output directory, and its own token.
