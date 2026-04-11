@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 build/
 dist/
+
+# Secrets consumed by material_core/scripts/manage-tokens.sh
+material_core/scripts/.env
