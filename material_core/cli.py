@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import re
+import secrets
 import shutil
+from datetime import date, timedelta
 from importlib.resources import files
 from pathlib import Path
 
 import click
 
+from ._cloudflare import KVClient, load_credentials
 from ._projects import (
     PROJECTS_FILE,
     add_project,
@@ -22,6 +26,8 @@ from ._scaffold import (
     substitute_placeholders,
     title_case_from_slug,
 )
+
+SITE_BASE = "https://material.professorfroehlich.de"
 
 LINK_TARGETS = ("_brand.yml", "shared")
 
@@ -178,6 +184,132 @@ def course_remove(name: str, yes: bool) -> None:
         f"{name}/ and any issued access tokens are NOT touched by this "
         "command — see docs/administration.md for manual cleanup."
     )
+
+
+@main.group()
+def token() -> None:
+    """Manage lecture access tokens."""
+
+
+@token.command("issue")
+@click.argument("course")
+@click.argument("label")
+@click.option(
+    "--days",
+    type=int,
+    default=365,
+    show_default=True,
+    help="Validity period in days.",
+)
+def token_issue(course: str, label: str, days: int) -> None:
+    """Issue a new access token for COURSE with LABEL."""
+    account_id, api_token, namespace_id = load_credentials()
+    tok = secrets.token_hex(12)
+    issued = date.today().isoformat()
+    expires = (date.today() + timedelta(days=days)).isoformat()
+
+    with KVClient(account_id, api_token, namespace_id) as kv:
+        kv.put(
+            f"tok:{tok}",
+            {
+                "course": course,
+                "label": label,
+                "issued": issued,
+                "expires": expires,
+            },
+        )
+
+    click.echo("")
+    click.echo("Token issued successfully.")
+    click.echo("")
+    click.echo(f"  Token  : {tok}")
+    click.echo(f"  Course : {course}")
+    click.echo(f"  Label  : {label}")
+    click.echo(f"  Issued : {issued}")
+    click.echo(f"  Expires: {expires} ({days} days)")
+    click.echo("")
+    if course == "*":
+        click.echo(f"  iLearn link (all courses): {SITE_BASE}/?token={tok}")
+    else:
+        click.echo(f"  iLearn link: {SITE_BASE}/{course}/?token={tok}")
+    click.echo("")
+
+
+@token.command("list")
+@click.argument("course", required=False)
+def token_list(course: str | None) -> None:
+    """List access tokens, optionally filtered to one COURSE."""
+    account_id, api_token, namespace_id = load_credentials()
+
+    with KVClient(account_id, api_token, namespace_id) as kv:
+        keys = kv.list_keys("tok:")
+        if not keys:
+            click.echo("No tokens found.")
+            return
+
+        today = date.today()
+        rows: list[tuple[str, str, str, str, str]] = []
+        for key in keys:
+            tok = key[len("tok:"):] if key.startswith("tok:") else key
+            raw = kv.get(key) or {}
+            row_course = str(raw.get("course", ""))
+            if course is not None and row_course != course:
+                continue
+            label = str(raw.get("label", ""))
+            issued = str(raw.get("issued", ""))
+            expires = str(raw.get("expires", ""))
+            if expires:
+                try:
+                    if date.fromisoformat(expires) < today:
+                        expires = f"{expires} [EXPIRED]"
+                except ValueError:
+                    pass
+            rows.append((tok, row_course, label, issued, expires))
+
+    if not rows:
+        click.echo("No tokens found.")
+        return
+
+    headers = ("TOKEN", "COURSE", "LABEL", "ISSUED", "EXPIRES")
+    widths = [
+        max(len(headers[i]), max(len(row[i]) for row in rows))
+        for i in range(len(headers))
+    ]
+    fmt = "  ".join(f"{{:<{w}}}" for w in widths)
+    click.echo(fmt.format(*headers))
+    click.echo(fmt.format(*("-" * w for w in widths)))
+    for row in rows:
+        click.echo(fmt.format(*row))
+
+
+@token.command("revoke")
+@click.argument("token_value")
+def token_revoke(token_value: str) -> None:
+    """Revoke (delete) the KV entry for TOKEN_VALUE.
+
+    Session cookies remain valid until COOKIE_SECRET rotation — see
+    docs/administration.md §7.
+    """
+    account_id, api_token, namespace_id = load_credentials()
+    with KVClient(account_id, api_token, namespace_id) as kv:
+        deleted = kv.delete(f"tok:{token_value}")
+
+    if deleted:
+        click.echo(f"Token '{token_value}' revoked.")
+    else:
+        click.echo(f"Token '{token_value}' not found (already revoked?).")
+
+
+@token.command("show")
+@click.argument("token_value")
+def token_show(token_value: str) -> None:
+    """Print raw KV metadata for TOKEN_VALUE."""
+    account_id, api_token, namespace_id = load_credentials()
+    with KVClient(account_id, api_token, namespace_id) as kv:
+        raw = kv.get(f"tok:{token_value}")
+    if raw is None:
+        raise click.ClickException("token not found")
+    click.echo(json.dumps(raw, indent=2))
 
 
 if __name__ == "__main__":
