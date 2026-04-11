@@ -7,5 +7,6 @@
 | REQ-003 | Matrix-driven CI with explicit `projects.yml` manifest | DONE | [REQ-003](REQ-003.md) | REQ-001 |
 | REQ-004 | `matctl course add` / `matctl course remove` — course lifecycle CLI | DONE | [REQ-004](REQ-004.md) | REQ-001, REQ-003 |
 | REQ-005 | Standalone document support — `doc` template and `matctl doc add` / `doc remove` | OPEN | [REQ-005](REQ-005.md) | REQ-003, REQ-004 |
+| REQ-006 | `matctl token` — token lifecycle CLI (issue / list / revoke / show) | OPEN | [REQ-006](REQ-006.md) | REQ-001, REQ-004 |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)

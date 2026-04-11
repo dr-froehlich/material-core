@@ -83,4 +83,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 OPEN (standalone doc support — shares `_projects.py`/`_scaffold.py` from REQ-004).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 OPEN (standalone doc support — shares `_projects.py`/`_scaffold.py` from REQ-004). REQ-006 OPEN (`matctl token issue/list/revoke/show` — port of `manage-tokens.sh` to Python, adds `httpx`).
