@@ -1,0 +1,11 @@
+<!-- Shared fragment: included in both script chapter and slide deck.
+     File must start with _ so Quarto does not render it standalone. -->
+
+::: {.callout-note icon=false}
+## Exercise
+
+Problem statement here. Appears identically in the script and on the slide.
+
+a) Part one
+b) Part two
+:::

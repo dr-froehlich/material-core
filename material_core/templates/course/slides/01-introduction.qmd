@@ -1,0 +1,40 @@
+---
+title: "Introduction"
+subtitle: "Course Title"       # CHANGE
+date: today
+---
+
+## Agenda
+
+- Topic A
+- Topic B
+- Topic C
+
+::: notes
+Personal note: spend ~10 min on motivation, ask students about prior experience.
+Appears in speaker view only — never in published output.
+:::
+
+## Key Concept {.smaller}
+
+Slide content: concise, visual, bullet-driven.
+
+::: {.highlight-box}
+**Definition:** A key term is defined here.
+:::
+
+## Shared Content
+
+<!-- shared exercise / table included from _shared/ -->
+{{< include ../_shared/_exercise-example.qmd >}}
+
+## Summary
+
+| Concept | Take-away |
+|---------|-----------|
+| A       | ...       |
+| B       | ...       |
+
+::: notes
+Remind students: details in the script, Chapter 1.
+:::

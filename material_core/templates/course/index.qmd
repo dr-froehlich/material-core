@@ -1,0 +1,25 @@
+---
+title: "Welcome"
+---
+
+Brief course description — what this course is about and who it is for.
+
+## Learning Objectives {.unnumbered}
+
+After completing this course, students will be able to:
+
+- Objective 1
+- Objective 2
+- Objective 3
+
+## Schedule {.unnumbered}
+
+| Week | Chapter | Topic |
+|------|---------|-------|
+| 1    | 1       | Introduction |
+
+## How to Use This Script {.unnumbered}
+
+The slides used in class are available at: [slides/](../slides/)
+
+Personal notes and organizational remarks are not included in this published version.

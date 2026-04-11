@@ -1,0 +1,37 @@
+project:
+  type: book
+  output-dir: _output/book
+
+book:
+  title:    "Course Title"           # CHANGE
+  subtitle: "Course Subtitle"        # CHANGE or remove
+  author:   "Prof. Dr.-Ing. Peter Fröhlich"
+  date:     today
+  language: en                       # en or de
+  favicon:  THD-logo.png
+  sidebar:
+    logo:   THD-logo.png
+  chapters:
+    - index.qmd
+    - chapters/01-introduction.qmd
+    # - chapters/02-next-chapter.qmd
+
+format:
+  html:
+    theme:
+      - cosmo
+      - ../shared/base.scss
+    toc:                true
+    toc-depth:          3
+    number-sections:    true
+    smooth-scroll:      true
+    code-fold:          true
+    citations-hover:    true
+    footnotes-hover:    true
+  orange-book-typst:
+    output-file:      course-name.pdf   # CHANGE to match folder name
+    number-sections:  true
+    toc:              true
+    toc-depth:        2
+    template-partials:
+      - ../shared/typst-show.typ

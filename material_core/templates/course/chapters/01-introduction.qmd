@@ -1,0 +1,77 @@
+---
+title: "Introduction"
+# draft: true    # uncomment to hide this chapter from the published site
+---
+
+## Motivation
+
+Full prose explanation for the written script. This content appears here
+only — not on the slides.
+
+::: {.content-visible unless-format="revealjs"}
+Extended derivation, background reading, detailed examples — script only.
+:::
+
+<!-- Teaching notes: outer div hides content unless --profile notes is passed -->
+::: {.content-visible when-profile="notes"}
+::: {.callout-tip}
+## Teaching Note
+Personal remarks visible only when rendering with `--profile notes`.
+Use this for: pacing reminders, live-demo steps, common student questions,
+board sketches to draw, references to previous semesters.
+:::
+:::
+
+## Key Concept
+
+Content that is relevant for both script and slides lives here as plain
+markdown — no fencing needed.
+
+$$
+E = mc^2
+$$ {#eq-example}
+
+As shown in @eq-example ...
+
+![Caption for a shared figure](../assets/diagrams/placeholder.svg){#fig-example}
+
+See @fig-example for the circuit diagram.
+
+<!-- shared content example: exercise or reference table -->
+{{< include ../_shared/_exercise-example.qmd >}}
+
+## Callout Reference
+
+Quarto provides five callout types for drawing reader attention.
+Delete this section once you no longer need the reference.
+
+::: {.callout-note}
+## Note
+Supplementary information, definitions, or background reading.
+:::
+
+::: {.callout-tip}
+## Tip
+Best practices, shortcuts, or particularly useful insights.
+:::
+
+::: {.callout-warning}
+## Warning
+Common mistakes, pitfalls, or things that often cause confusion.
+:::
+
+::: {.callout-important}
+## Important
+Must-know facts — exam-relevant content or safety-critical information.
+:::
+
+::: {.callout-caution}
+## Caution
+Proceed carefully — edge cases, deprecated behavior, known traps.
+:::
+
+## Summary
+
+- Point 1
+- Point 2
+- Point 3

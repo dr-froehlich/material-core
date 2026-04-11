@@ -1,0 +1,69 @@
+// ============================================================
+// Shared base styles — applied to both HTML book and RevealJS
+// ============================================================
+
+/*-- scss:defaults --*/
+
+// Brand colors (mirrors _brand.yml for direct SCSS use)
+$thd-blue:       #1a4273;
+$thd-blue-light: #e8f0f7;
+$thd-accent:     #e87722;
+
+/*-- scss:rules --*/
+
+// ── HTML Book ───────────────────────────────────────────────
+
+.book .book-summary {
+  border-right: 2px solid $thd-blue-light;
+}
+
+h1, h2, h3 {
+  color: $thd-blue;
+}
+
+// Callout styling
+.callout-note {
+  border-left-color: $thd-blue;
+}
+
+.callout-tip {
+  border-left-color: $thd-accent;
+}
+
+// Exercise blocks
+.exercise {
+  background: $thd-blue-light;
+  border-left: 4px solid $thd-blue;
+  padding: 1em 1.2em;
+  margin: 1.5em 0;
+  border-radius: 0 4px 4px 0;
+}
+
+// ── RevealJS Slides ─────────────────────────────────────────
+
+.reveal {
+  .slide-logo {
+    height: 36px;
+    bottom: 12px;
+    right: 12px;
+  }
+
+  h1, h2 {
+    color: $thd-blue;
+    font-family: "Saira", sans-serif;
+  }
+
+  .footer {
+    font-size: 0.55em;
+    color: lighten($thd-blue, 20%);
+  }
+
+  // Highlight box on slides
+  .highlight-box {
+    background: $thd-blue-light;
+    border: 2px solid $thd-blue;
+    border-radius: 6px;
+    padding: 0.6em 1em;
+    margin: 0.5em 0;
+  }
+}

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="93.598442mm"
+   height="64.952972mm"
+   viewBox="0 0 93.598442 64.952973"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   sodipodi:docname="placeholder.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     inkscape:zoom="2.3773489"
+     inkscape:cx="155.63555"
+     inkscape:cy="174.77451"
+     inkscape:window-width="3119"
+     inkscape:window-height="2104"
+     inkscape:window-x="1674"
+     inkscape:window-y="13"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-54.797758,-84.072802)">
+    <rect
+       style="fill:#aaccff;stroke:#000000;stroke-width:0.264583;stroke-linecap:round;stroke-linejoin:round"
+       id="rect1"
+       width="93.333862"
+       height="64.688393"
+       x="54.93005"
+       y="84.205093" />
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:9.87778px;font-family:Verdana;-inkscape-font-specification:'Verdana Bold';text-align:center;writing-mode:lr-tb;direction:ltr;text-anchor:middle;fill:#4d4d4d;stroke:none;stroke-width:0.264583;stroke-linecap:round;stroke-linejoin:round"
+       x="100.38667"
+       y="112.74024"
+       id="text1"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         style="font-size:9.87778px;fill:#4d4d4d;stroke:none;stroke-width:0.264583"
+         x="100.38667"
+         y="112.74024">Here is</tspan><tspan
+         sodipodi:role="line"
+         style="font-size:9.87778px;fill:#4d4d4d;stroke:none;stroke-width:0.264583"
+         x="100.38667"
+         y="125.08746"
+         id="tspan2">your figure</tspan></text>
+  </g>
+</svg>

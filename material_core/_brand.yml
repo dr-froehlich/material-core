@@ -1,3 +1,38 @@
-# placeholder — replaced in Phase 2 with the real brand file copied from material/
-meta:
-  name: material-core-placeholder
+color:
+  palette:
+    thd-blue:       "#1a4273"
+    thd-blue-light: "#e8f0f7"
+    thd-accent:     "#e87722"   # adjust to current THD CI if needed
+    white:          "#ffffff"
+    text:           "#1a1a1a"
+  primary:    thd-blue
+  secondary:  thd-blue-light
+  foreground: text
+  background: white
+
+logo:
+  small:  shared/assets/THD-logo.png
+  medium: shared/assets/THD-logo.png
+  large:  shared/assets/THD-logo.png
+
+typography:
+  fonts:
+    - family: Saira
+      source: file
+      files:
+        - path: shared/assets/fonts/Saira-VariableFont_wdth,wght.ttf
+          style: normal
+        - path: shared/assets/fonts/Saira-Italic-VariableFont_wdth,wght.ttf
+          style: italic
+    - family: Daniel
+      source: file
+      files:
+        - path: shared/assets/fonts/Daniel-Regular.otf
+          weight: 400
+        - path: shared/assets/fonts/Daniel-Bold.otf
+          weight: 700
+        - path: shared/assets/fonts/Daniel-Black.otf
+          weight: 900
+  base-size:      1rem
+  line-height:    1.6
+  monospace-size: 0.85em

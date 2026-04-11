@@ -34,6 +34,16 @@ matctl unlink   # removes them
 `matctl render`, `matctl deploy`, and `matctl new` are stubs reserved for
 REQ-002.
 
+## Repository contents
+
+- `material_core/` — Python package (CLI + brand/shared assets as package data)
+- `material_core/cloudflare/worker.js` — token-validating access Worker
+- `material_core/scripts/manage-tokens.sh` — KV token CRUD helper
+- `material_core/templates/course/` — course scaffolding template
+- `docs/` — engineering documentation (administration, authoring, plans, requirements)
+
+See [`CLAUDE.md`](CLAUDE.md) for the full engineering guide.
+
 ## Status
 
-Skeleton — REQ-001 Phase 1.
+REQ-001 (repository split) in progress.

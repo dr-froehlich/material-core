@@ -1,0 +1,18 @@
+project:
+  type:       default
+  output-dir: _output
+
+format:
+  revealjs:
+    theme:
+      - default
+      - ../../shared/base.scss
+    logo:           THD-logo.png
+    footer:         "Course Title — Prof. Dr.-Ing. Peter Fröhlich"   # CHANGE
+    slide-number:   true
+    show-slide-number: speaker
+    transition:     fade
+    transition-speed: fast
+    highlight-style: github
+    code-line-numbers: true
+    embed-resources: false   # set true for fully self-contained offline HTML
