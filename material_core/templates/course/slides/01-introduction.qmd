@@ -1,6 +1,6 @@
 ---
 title: "Introduction"
-subtitle: "Course Title"       # CHANGE
+subtitle: "{{COURSE_TITLE}}"
 date: today
 ---
 
