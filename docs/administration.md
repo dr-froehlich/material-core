@@ -30,7 +30,7 @@ flowchart LR
     NC[Netcup webhosting<br/>httpdocs/]
     CF[Cloudflare Worker<br/>+ KV: LECTURE_TOKENS]
     Stud[Student browser]
-    Mgmt[manage-tokens.sh<br/>local CLI]
+    Mgmt[matctl token<br/>local CLI]
 
     Dev -- git push --> GH
     GH -- triggers --> GA
@@ -47,7 +47,7 @@ flowchart LR
 | **Netcup webhosting** | Static origin for `material.professorfroehlich.de`. No rsync in chroot — `scp` only |
 | **Cloudflare DNS + Worker** | Proxies the subdomain, enforces token auth, serves the 403 page |
 | **Cloudflare KV (`LECTURE_TOKENS`)** | Per-token records: `{course, label, issued, expires}` |
-| **`manage-tokens.sh`** | Local admin CLI that talks to the Cloudflare API to create/list/revoke tokens |
+| **`matctl token`** | Local admin CLI that talks to the Cloudflare API to create/list/revoke tokens |
 
 ---
 
@@ -103,7 +103,7 @@ courses.
 |---|---|---|
 | Workflow | `.github/workflows/publish.yml` | Build + deploy per course |
 | New course bootstrap | `new-course.sh` | Scaffolds a course directory |
-| Token CLI | `scripts/manage-tokens.sh` | Issue / list / revoke / show tokens |
+| Token CLI | `matctl token` | Issue / list / revoke / show tokens |
 | Worker source | `cloudflare/worker.js` | Authoritative copy; deploy manually |
 
 **GitHub Actions secrets** (Repo Settings → Secrets and variables → Actions):
@@ -142,9 +142,8 @@ paste into the Cloudflare dashboard editor and click *Deploy*. There is no
 
 | Item | Path |
 |---|---|
-| Token CLI | `scripts/manage-tokens.sh` |
+| Token CLI | `matctl token` |
 | Credentials | `scripts/.env` (gitignored) |
-| Template | `scripts/.env.example` |
 
 ---
 
@@ -158,7 +157,7 @@ paste into the Cloudflare dashboard editor and click *Deploy*. There is no
 | `<course>/slides/_quarto.yml` | Slide footer | Each new course |
 | `projects.yml` | Manifest of publishable projects (name + type) | Each new course or doc (see §6) |
 | `.github/workflows/publish.yml` | Build + deploy workflow | Tooling changes only — never per-course |
-| `scripts/.env` | `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_KV_NAMESPACE_ID` | Rotating Cloudflare API token |
+| `material_core/scripts/.env` | `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_KV_NAMESPACE_ID` | Rotating Cloudflare API token (read by `matctl token`) |
 | `cloudflare/worker.js` | Auth Worker source | Worker logic changes (then redeploy) |
 
 ### 5.1 Manifest: `projects.yml`
@@ -242,8 +241,8 @@ matctl course remove <course> --yes    # no prompt, for scripting
 - Remote content at `material.professorfroehlich.de/<course>/` — delete via
   SSH or let it become a dead link.
 - Cloudflare Worker KV tokens issued against the removed course — they become
-  dead keys. Revoke them with `scripts/manage-tokens.sh revoke <token>` (§7.3)
-  if you want to clean up KV.
+  dead keys. Revoke them with `matctl token revoke <token>` (§7.3) if you want
+  to clean up KV.
 
 ### 6.3 First publish after adding a course
 
@@ -261,24 +260,24 @@ Worker until a token is issued (§7).
 
 ## 7. Token Management
 
-All commands run from the repo root and read credentials from `scripts/.env`
-(see `scripts/.env.example` for the three required Cloudflare variables).
+All commands read credentials from `material_core/scripts/.env` inside the
+package (env vars `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_KV_NAMESPACE_ID`).
+Process environment variables take precedence if set.
 
 ### 7.1 Issue a token
 
 ```bash
-./scripts/manage-tokens.sh issue <course> "<label>" [days]
-# default: 365 days
+matctl token issue <course> "<label>" [--days 365]
 ```
 
 Examples:
 
 ```bash
-./scripts/manage-tokens.sh issue digital-und-mikrocomputertechnik "WS2025/26" 365
-./scripts/manage-tokens.sh issue "*" "Alle Kurse WS2025/26" 365
+matctl token issue digital-und-mikrocomputertechnik "WS2025/26" --days 365
+matctl token issue "*" "Alle Kurse WS2025/26" --days 365
 ```
 
-The script prints the token and the ready-to-paste iLearn URL:
+`matctl token issue` prints the token and the ready-to-paste iLearn URL:
 
 ```
 https://material.professorfroehlich.de/<course>/?token=<TOKEN>
@@ -290,8 +289,8 @@ Paste that link into the iLearn course. Students who follow it once receive a
 ### 7.2 List tokens
 
 ```bash
-./scripts/manage-tokens.sh list                  # all tokens
-./scripts/manage-tokens.sh list <course>         # filtered
+matctl token list                  # all tokens
+matctl token list <course>         # filtered
 ```
 
 Expired tokens are flagged `[EXPIRED]` but remain in KV until revoked.
@@ -299,7 +298,7 @@ Expired tokens are flagged `[EXPIRED]` but remain in KV until revoked.
 ### 7.3 Revoke a token
 
 ```bash
-./scripts/manage-tokens.sh revoke <token>
+matctl token revoke <token>
 ```
 
 Effect is immediate — the next request to the Worker fails the KV lookup. Note
@@ -307,3 +306,12 @@ that **already-issued session cookies remain valid until they expire** (up to
 1 year), because cookie verification does not consult KV. To force a global
 re-auth, rotate `COOKIE_SECRET` in the Worker variables: every existing cookie
 becomes invalid on next request.
+
+### 7.4 Show token metadata
+
+```bash
+matctl token show <token>
+```
+
+Prints the raw JSON stored in KV for one token: `course`, `label`, `issued`,
+`expires`.
