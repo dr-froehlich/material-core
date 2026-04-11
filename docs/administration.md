@@ -156,9 +156,41 @@ paste into the Cloudflare dashboard editor and click *Deploy*. There is no
 | `shared/base.scss` | HTML theme overrides | Visual tweaks across all courses |
 | `<course>/_quarto.yml` | Course title, language, PDF `output-file` | Each new course |
 | `<course>/slides/_quarto.yml` | Slide footer | Each new course |
-| `.github/workflows/publish.yml` | Build + deploy jobs | Each new course (see §6) |
+| `projects.yml` | Manifest of publishable projects (name + type) | Each new course or doc (see §6) |
+| `.github/workflows/publish.yml` | Build + deploy workflow | Tooling changes only — never per-course |
 | `scripts/.env` | `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `CF_KV_NAMESPACE_ID` | Rotating Cloudflare API token |
 | `cloudflare/worker.js` | Auth Worker source | Worker logic changes (then redeploy) |
+
+### 5.1 Manifest: `projects.yml`
+
+Every publishable project — course or standalone document — is enumerated in
+`material/projects.yml`. The CI workflow reads it once per run and uses it
+for both change detection and matrix expansion.
+
+Schema:
+
+```yaml
+projects:
+  - name: <directory-name>   # also the URL path segment under material.professorfroehlich.de/
+    type: course | doc
+```
+
+Render and deploy rules by type:
+
+| `type` | Render | Deploy |
+|---|---|---|
+| `course` | `quarto render <name>` + `quarto render <name>/slides` | `<name>/_output/book/*` → webroot; `<name>/slides/_output/*` → `<webroot>/slides/` |
+| `doc`    | `quarto render <name>` | `<name>/_output/*` → webroot |
+
+Change detection: the workflow diffs the push against its base. A project is
+rebuilt only when at least one changed file lives under `<name>/`. Changes to
+`projects.yml` or `.github/workflows/publish.yml` rebuild everything, as does
+`workflow_dispatch` and any push with no valid base commit (first push, force
+push). An unrelated edit (top-level README, docs, etc.) builds nothing — the
+`build` matrix is guarded by `if: needs.changes.outputs.projects != '[]'`.
+
+`matctl course add` (REQ-004) and `matctl doc add` (REQ-005) will patch this
+file automatically. Until those land, hand-edit it as shown in §6.2.
 
 ---
 
@@ -178,76 +210,29 @@ Then edit:
   `format.orange-book-typst.output-file: <course>.pdf`
 - `<course>/slides/_quarto.yml` — set the footer text
 
-### 6.2 Add the workflow job
+### 6.2 Register the course in `projects.yml`
 
-Edit `.github/workflows/publish.yml` in **two** places.
-
-**(a) `changes` job — add an output and a paths-filter entry:**
+Add a one-line entry to `material/projects.yml`:
 
 ```yaml
-jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      digital-und-mikrocomputertechnik: ${{ steps.filter.outputs.digital-und-mikrocomputertechnik }}
-      <course>: ${{ steps.filter.outputs.<course> }}      # ← add
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            digital-und-mikrocomputertechnik:
-              - 'digital-und-mikrocomputertechnik/**'
-              - 'shared/**'
-              - '_brand.yml'
-            <course>:                                     # ← add
-              - '<course>/**'
-              - 'shared/**'
-              - '_brand.yml'
+projects:
+  - name: digital-und-mikrocomputertechnik
+    type: course
+  - name: <course>          # ← add
+    type: course
 ```
 
-**(b) Course job — copy an existing block and rename:**
+That is the only file you touch. `.github/workflows/publish.yml` reads the
+manifest at CI time and fans out a `build` matrix over every project; no
+workflow edits are needed, ever, to add a course.
 
-```yaml
-  <course>:
-    needs: changes
-    if: needs.changes.outputs['<course>'] == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    env:
-      COURSE_DIR: <course>
-    steps:
-      - uses: actions/checkout@v4
-      - uses: quarto-dev/quarto-actions/setup@v2
-      - name: Install fonts
-        run: |
-          mkdir -p ~/.local/share/fonts
-          cp shared/assets/fonts/*.ttf shared/assets/fonts/*.otf ~/.local/share/fonts/ 2>/dev/null || true
-          fc-cache -fv
-      - name: Render book (HTML + PDF)
-        run: quarto render $COURSE_DIR
-      - name: Render slides
-        run: quarto render $COURSE_DIR/slides
-      - name: Deploy to Netcup
-        env:
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
-          SSH_OPTS="-o StrictHostKeyChecking=no -4"
-          REMOTE="${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
-          WEBROOT="/material.professorfroehlich.de/httpdocs/${COURSE_DIR}"
-          sshpass -e ssh $SSH_OPTS "$REMOTE" "mkdir -p ${WEBROOT} && rm -rf ${WEBROOT}/* ${WEBROOT}/.[!.]*" 2>/dev/null || true
-          sshpass -e scp $SSH_OPTS -r ${COURSE_DIR}/_output/book/* "$REMOTE:${WEBROOT}/"
-          if [[ -d "${COURSE_DIR}/slides/_output" ]]; then
-            sshpass -e ssh $SSH_OPTS "$REMOTE" "mkdir -p ${WEBROOT}/slides"
-            sshpass -e scp $SSH_OPTS -r ${COURSE_DIR}/slides/_output/* "$REMOTE:${WEBROOT}/slides/"
-          fi
-```
+Future: `matctl course add <course>` (REQ-004) will patch `projects.yml` and
+scaffold the directory in one step. Until that lands, hand-edit the manifest.
 
 ### 6.3 First publish
 
 ```bash
-git add <course>/ .github/workflows/publish.yml
+git add <course>/ projects.yml
 git commit -m "Add course: <course>"
 git push
 ```
