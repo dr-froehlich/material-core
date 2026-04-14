@@ -225,7 +225,7 @@ function forbidden(pathname) {
   <div class="card">
     <h1>Zugriff nicht möglich</h1>
     <p>Diese Seite ist nur mit einem gültigen Zugangslink erreichbar.</p>
-    <p>Den Link findesn Sie im zugehörigen <strong>iLearn-Kurs</strong>.</p>
+    <p>Den Link zu Kursmaterialien finden Sie im zugehörigen <strong>iLearn-Kurs</strong>.</p>
     <p class="hint">Pfad: <code>${escapeHtml(pathname)}</code></p>
   </div>
 </body>
