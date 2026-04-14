@@ -1,8 +1,8 @@
 """Round-trip helpers for the `projects.yml` manifest.
 
-Private module — shared by `matctl course add/remove` and (via REQ-005)
-`matctl doc add/remove`. Uses `ruamel.yaml` so hand-edited comments and
-formatting in the manifest survive a programmatic rewrite.
+Private module — shared by `matctl course add/remove`, `matctl doc add/remove`,
+and `matctl group add/remove/modify`. Uses `ruamel.yaml` so hand-edited
+comments and formatting in the manifest survive a programmatic rewrite.
 """
 
 from __future__ import annotations
@@ -46,16 +46,52 @@ def project_names(doc: CommentedMap) -> list[str]:
     return [p["name"] for p in doc["projects"]]
 
 
+def find_entry(doc: CommentedMap, name: str) -> CommentedMap | None:
+    for p in doc["projects"]:
+        if p["name"] == name:
+            return p
+    return None
+
+
+def group_exists(doc: CommentedMap, name: str) -> bool:
+    entry = find_entry(doc, name)
+    return entry is not None and entry.get("type") == "group"
+
+
+def dependents_of_group(doc: CommentedMap, group_name: str) -> list[str]:
+    return [
+        p["name"]
+        for p in doc["projects"]
+        if p.get("type") in ("course", "doc")
+        and p.get("group") == group_name
+    ]
+
+
 def add_project(
-    doc: CommentedMap, name: str, type_: str, group: str | None = None
+    doc: CommentedMap,
+    name: str,
+    type_: str,
+    title: str,
+    group: str | None = None,
 ) -> None:
     if name in project_names(doc):
         raise ValueError(f"{name} already in manifest")
     entry = CommentedMap()
     entry["name"] = name
     entry["type"] = type_
+    entry["title"] = title
     if group is not None:
         entry["group"] = group
+    doc["projects"].append(entry)
+
+
+def add_group(doc: CommentedMap, name: str, title: str) -> None:
+    if name in project_names(doc):
+        raise ValueError(f"{name} already in manifest")
+    entry = CommentedMap()
+    entry["name"] = name
+    entry["type"] = "group"
+    entry["title"] = title
     doc["projects"].append(entry)
 
 
@@ -63,6 +99,20 @@ def remove_project(doc: CommentedMap, name: str) -> bool:
     projects = doc["projects"]
     for i, p in enumerate(projects):
         if p["name"] == name:
+            del projects[i]
+            return True
+    return False
+
+
+def remove_group(doc: CommentedMap, name: str) -> bool:
+    dependents = dependents_of_group(doc, name)
+    if dependents:
+        raise ValueError(
+            f"group {name} has dependents: {', '.join(dependents)}"
+        )
+    projects = doc["projects"]
+    for i, p in enumerate(projects):
+        if p["name"] == name and p.get("type") == "group":
             del projects[i]
             return True
     return False

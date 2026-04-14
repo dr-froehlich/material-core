@@ -12,12 +12,19 @@ from pathlib import Path
 
 import click
 
+from ruamel.yaml import YAML
+
 from ._cloudflare import KVClient, load_credentials
 from ._projects import (
     PROJECTS_FILE,
+    add_group,
     add_project,
+    dependents_of_group,
+    find_entry,
+    group_exists,
     load_manifest,
     project_names,
+    remove_group,
     remove_project,
     save_manifest,
 )
@@ -33,6 +40,8 @@ LINK_TARGETS = ("_brand.yml", "shared")
 
 _NAME_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 
+_UNSET: object = object()
+
 
 def _package_root() -> Path:
     return Path(str(files("material_core")))
@@ -42,6 +51,7 @@ def _scaffold_project(
     project_type: str,
     template_subdir: str,
     name: str,
+    title: str,
     placeholders: dict[str, str],
     next_steps: list[str],
     group: str | None = None,
@@ -62,13 +72,18 @@ def _scaffold_project(
         raise click.ClickException(
             f"{name} already registered in {PROJECTS_FILE}"
         )
+    if group is not None and not group_exists(manifest, group):
+        raise click.ClickException(
+            f"group {group!r} not found in {PROJECTS_FILE} — "
+            f"create it first with `matctl group add {group} --title ...`"
+        )
     dest = cwd / name
     if dest.exists():
         raise click.ClickException(f"{dest} already exists")
 
     copy_template(template_subdir, dest)
     substitute_placeholders(dest, placeholders)
-    add_project(manifest, name, project_type, group=group)
+    add_project(manifest, name, project_type, title, group=group)
     save_manifest(manifest_path, manifest)
 
     click.echo(f"created {project_type} {name}")
@@ -210,6 +225,7 @@ def course_add(
         "course",
         "course",
         name,
+        resolved_title,
         {
             "{{COURSE_NAME}}": name,
             "{{COURSE_TITLE}}": resolved_title,
@@ -257,6 +273,7 @@ def doc_add(name: str, title: str | None, group: str | None) -> None:
         "doc",
         "doc",
         name,
+        resolved_title,
         {
             "{{DOC_NAME}}": name,
             "{{DOC_TITLE}}": resolved_title,
@@ -403,6 +420,272 @@ def token_show(token_value: str) -> None:
     if raw is None:
         raise click.ClickException("token not found")
     click.echo(json.dumps(raw, indent=2))
+
+
+def _rewrite_title(label: str, dest: Path, new_title: str) -> None:
+    """Write-through the new title into the scaffolded file for this type."""
+    yaml = YAML(typ="rt")
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    if label == "course":
+        target = dest / "_quarto.yml"
+        if not target.exists():
+            raise click.ClickException(
+                f"cannot rewrite title: {target} does not exist"
+            )
+        with target.open("r", encoding="utf-8") as f:
+            doc = yaml.load(f)
+        if doc is None or "book" not in doc or "title" not in doc["book"]:
+            raise click.ClickException(
+                f"{target} has no `book.title` key — refusing to rewrite; "
+                "fix the file by hand"
+            )
+        doc["book"]["title"] = new_title
+        with target.open("w", encoding="utf-8") as f:
+            yaml.dump(doc, f)
+        return
+
+    if label == "doc":
+        target = dest / "index.qmd"
+        if not target.exists():
+            raise click.ClickException(
+                f"cannot rewrite title: {target} does not exist"
+            )
+        text = target.read_text(encoding="utf-8")
+        lines = text.split("\n")
+        if not lines or lines[0].rstrip() != "---":
+            raise click.ClickException(
+                f"{target} has no leading `---` front-matter block — "
+                "refusing to rewrite; fix the file by hand"
+            )
+        close_idx: int | None = None
+        for i in range(1, len(lines)):
+            if lines[i].rstrip() == "---":
+                close_idx = i
+                break
+        if close_idx is None:
+            raise click.ClickException(
+                f"{target} has an unterminated front-matter block — "
+                "refusing to rewrite; fix the file by hand"
+            )
+        import io
+        front_src = "\n".join(lines[1:close_idx]) + "\n"
+        front = yaml.load(front_src)
+        if front is None:
+            raise click.ClickException(
+                f"{target} has an empty front-matter block — "
+                "refusing to rewrite; fix the file by hand"
+            )
+        front["title"] = new_title
+        buf = io.StringIO()
+        yaml.dump(front, buf)
+        new_front = buf.getvalue().rstrip("\n").split("\n")
+        new_lines = ["---", *new_front, "---", *lines[close_idx + 1:]]
+        target.write_text("\n".join(new_lines), encoding="utf-8")
+        return
+
+    raise click.ClickException(f"unknown label for title rewrite: {label}")
+
+
+def _modify_project(
+    label: str,
+    name: str,
+    title: object,
+    group: object,
+) -> None:
+    """Shared implementation for `course modify` and `doc modify`."""
+    if title is _UNSET and group is _UNSET:
+        raise click.UsageError("specify --title and/or --group")
+
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    manifest = load_manifest(manifest_path)
+    entry = find_entry(manifest, name)
+    if entry is None:
+        raise click.ClickException(
+            f"{name} not found in {PROJECTS_FILE}"
+        )
+    actual_type = entry.get("type")
+    if actual_type != label:
+        raise click.ClickException(
+            f"{name} is a {actual_type!r}, not a {label!r}"
+        )
+
+    changes: list[str] = []
+    group_changed = False
+
+    if title is not _UNSET:
+        if not isinstance(title, str) or title == "":
+            raise click.ClickException("--title must not be empty")
+        entry["title"] = title
+        dest = cwd / name
+        _rewrite_title(label, dest, title)
+        changes.append(f"title → {title!r}")
+
+    if group is not _UNSET:
+        assert isinstance(group, str)
+        if group == "":
+            if "group" in entry:
+                del entry["group"]
+            changes.append("group removed")
+            group_changed = True
+        else:
+            if not _NAME_RE.fullmatch(group):
+                raise click.ClickException(
+                    f"invalid group name {group!r}: "
+                    "must match [a-z0-9][a-z0-9._-]*"
+                )
+            if not group_exists(manifest, group):
+                raise click.ClickException(
+                    f"group {group!r} not found in {PROJECTS_FILE} — "
+                    f"create it first with `matctl group add {group} --title ...`"
+                )
+            entry["group"] = group
+            changes.append(f"group → {group!r}")
+            group_changed = True
+
+    save_manifest(manifest_path, manifest)
+
+    click.echo(f"modified {label} {name}: {', '.join(changes)}")
+    if group_changed:
+        click.echo(
+            "note: remote content at the old deploy path on "
+            "material.professorfroehlich.de is NOT moved by this command — "
+            "it will become stale on the next CI run and must be cleaned up "
+            "manually. See docs/administration.md."
+        )
+
+
+@course.command("modify")
+@click.argument("name")
+@click.option(
+    "--title",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New human-readable title (write-through to _quarto.yml).",
+)
+@click.option(
+    "--group",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New group (must exist); pass empty string to remove grouping.",
+)
+def course_modify(name: str, title: object, group: object) -> None:
+    """Modify a course's title and/or group."""
+    _modify_project("course", name, title, group)
+
+
+@doc.command("modify")
+@click.argument("name")
+@click.option(
+    "--title",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New human-readable title (write-through to index.qmd front matter).",
+)
+@click.option(
+    "--group",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New group (must exist); pass empty string to remove grouping.",
+)
+def doc_modify(name: str, title: object, group: object) -> None:
+    """Modify a document's title and/or group."""
+    _modify_project("doc", name, title, group)
+
+
+@main.group("group")
+def group_cmd() -> None:
+    """Manage project groups in a material checkout."""
+
+
+@group_cmd.command("add")
+@click.argument("name")
+@click.option("--title", required=True, help="Human-readable title.")
+def group_add(name: str, title: str) -> None:
+    """Register a new group in projects.yml."""
+    if not _NAME_RE.fullmatch(name):
+        raise click.ClickException(
+            f"invalid group name {name!r}: must match [a-z0-9][a-z0-9._-]*"
+        )
+    if title == "":
+        raise click.ClickException("--title must not be empty")
+
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    manifest = load_manifest(manifest_path)
+    try:
+        add_group(manifest, name, title)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from None
+    save_manifest(manifest_path, manifest)
+    click.echo(f"created group {name}")
+
+
+@group_cmd.command("remove")
+@click.argument("name")
+@click.option("--yes", is_flag=True, help="Skip confirmation prompt.")
+def group_remove(name: str, yes: bool) -> None:
+    """Remove a group from projects.yml (fails if any dependents remain)."""
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    manifest = load_manifest(manifest_path)
+
+    entry = find_entry(manifest, name)
+    if entry is None:
+        raise click.ClickException(f"{name} not found in {PROJECTS_FILE}")
+    if entry.get("type") != "group":
+        raise click.ClickException(
+            f"{name} is a {entry.get('type')!r}, not a 'group'"
+        )
+
+    dependents = dependents_of_group(manifest, name)
+    if dependents:
+        raise click.ClickException(
+            f"group {name} has dependents — remove or re-group them first: "
+            f"{', '.join(dependents)}"
+        )
+
+    if not yes:
+        if not click.confirm(
+            f"remove group {name} from {PROJECTS_FILE}?", default=False
+        ):
+            raise click.ClickException("aborted")
+
+    remove_group(manifest, name)
+    save_manifest(manifest_path, manifest)
+    click.echo(f"removed group {name}")
+
+
+@group_cmd.command("modify")
+@click.argument("name")
+@click.option(
+    "--title",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New human-readable title for the group.",
+)
+def group_modify(name: str, title: object) -> None:
+    """Modify a group's title."""
+    if title is _UNSET:
+        raise click.UsageError("specify --title")
+    if not isinstance(title, str) or title == "":
+        raise click.ClickException("--title must not be empty")
+
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    manifest = load_manifest(manifest_path)
+    entry = find_entry(manifest, name)
+    if entry is None:
+        raise click.ClickException(f"{name} not found in {PROJECTS_FILE}")
+    if entry.get("type") != "group":
+        raise click.ClickException(
+            f"{name} is a {entry.get('type')!r}, not a 'group'"
+        )
+    entry["title"] = title
+    save_manifest(manifest_path, manifest)
+    click.echo(f"modified group {name}: title → {title!r}")
 
 
 if __name__ == "__main__":

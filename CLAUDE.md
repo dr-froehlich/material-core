@@ -41,18 +41,31 @@ material-core/
   checkout. With `pipx install --editable`, symlinks resolve into the live
   source tree, so SCSS edits are immediately visible to `quarto preview`.
 - `matctl unlink` — remove the symlinks.
+- `matctl group add <name> --title "..."` — register a new group in
+  `projects.yml`. No directory created. Groups must exist before any course or
+  doc can reference them via `--group`.
+- `matctl group remove <name> [--yes]` — remove a group entry (fails if any
+  course/doc still references it).
+- `matctl group modify <name> --title "..."` — update the group's title in the
+  manifest.
 - `matctl course add <name> [--title "..."] [--subtitle "..."] [--group <name>]`
   — scaffold a new course from the template and register it in `projects.yml`.
-  `--group` writes an optional `group:` field onto the entry; the project then
-  deploys under `<group>/<name>/` and shares its access scope with other
-  projects in the same group.
+  `--title` is recorded in the manifest (defaults to title-cased slug). `--group`
+  requires the group to already exist; the project deploys under `<group>/<name>/`
+  and shares access scope with other group members.
 - `matctl course remove <name> [--yes]` — remove the course directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
+- `matctl course modify <name> [--title "..."] [--group <name>]` — update a
+  course's title (write-through to `_quarto.yml:book.title`) and/or group. Pass
+  `--group ""` to remove grouping. At least one flag required.
 - `matctl doc add <name> [--title "..."] [--group <name>]` — scaffold a new
   standalone document (single `index.qmd`, no slides) and register it in
-  `projects.yml`. `--group` behaves as for `course add`.
+  `projects.yml`. `--title` and `--group` behave as for `course add`.
 - `matctl doc remove <name> [--yes]` — remove the document directory and
   manifest entry (remote content must be cleaned up manually).
+- `matctl doc modify <name> [--title "..."] [--group <name>]` — update a
+  document's title (write-through to `index.qmd` front matter) and/or group.
+  Behaves analogously to `course modify`.
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
   it to Cloudflare KV, and print the ready-to-paste iLearn URL.
 - `matctl token list [<course>]` — table of all tokens (or filtered to one
@@ -99,4 +112,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands).

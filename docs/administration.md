@@ -167,40 +167,86 @@ paste into the Cloudflare dashboard editor and click *Deploy*. There is no
 ### 5.1 Manifest: `projects.yml`
 
 Every publishable project — course or standalone document — is enumerated in
-`material/projects.yml`. The CI workflow reads it once per run and uses it
-for both change detection and matrix expansion.
+`material/projects.yml`, alongside the groups that scope them. The CI workflow
+reads it once per run and uses it for both change detection and matrix expansion.
 
 Schema:
 
 ```yaml
 projects:
-  - name: <directory-name>   # also the URL path segment under material.professorfroehlich.de/
+  - name: <group-name>       # group entry — no directory created
+    type: group
+    title: "Human-Readable Group Title"
+
+  - name: <directory-name>   # course or doc entry
     type: course | doc
+    title: "Human-Readable Title"
     group: <optional>        # optional: URL-path group; project deploys under <group>/<name>/
 ```
 
 Field reference:
 
-| Field | Required | Purpose |
+| Field | Required on | Purpose |
 |---|---|---|
-| `name` | yes | Directory name in the repo; also the last URL path segment (or the sole one, if ungrouped). Must match `[a-z0-9][a-z0-9._-]*`. |
-| `type` | yes | `course` or `doc` — selects render/deploy rules. |
-| `group` | no | Shared URL-path scope under which this project deploys. When set, the deploy target is `httpdocs/<group>/<name>/` and the public URL becomes `material.professorfroehlich.de/<group>/<name>/`. A single token issued for `<group>` covers every project sharing that group. Must match `[a-z0-9][a-z0-9._-]*`. |
+| `name` | all types | Unique slug across all entries. For courses/docs: directory name in the repo and last URL path segment. For groups: URL-path prefix only (no directory). Must match `[a-z0-9][a-z0-9._-]*`. |
+| `type` | all types | `group`, `course`, or `doc` — selects entry semantics and render/deploy rules. |
+| `title` | all types | Human-readable title. Written by `matctl add`; defaults to title-cased slug when `--title` is omitted (course/doc only). Required for groups. |
+| `group` | course, doc | Shared URL-path scope. When set, the deploy target is `httpdocs/<group>/<name>/` and the public URL becomes `material.professorfroehlich.de/<group>/<name>/`. Must match `[a-z0-9][a-z0-9._-]*`. |
 
-Worked example — two projects co-deployed under the `mk4-26` group plus one
-ungrouped doc:
+**Single namespace:** `name` values are unique across all entry types — a group, a
+course, and a doc cannot share a `name`. `matctl add` rejects collisions.
+
+Worked example — a group with two member projects plus one ungrouped doc:
 
 ```yaml
 projects:
+  - name: mk4-26
+    type: group
+    title: "Mikrocomputertechnik 4 — WS 2026"
   - name: digital-und-mikrocomputertechnik
     type: course
+    title: "Digital- und Mikrocomputertechnik"
     group: mk4-26            # → /mk4-26/digital-und-mikrocomputertechnik/
   - name: esp-survival-guide
     type: doc
+    title: "ESP32 Survival Guide"
     group: mk4-26            # → /mk4-26/esp-survival-guide/
   - name: unrelated-standalone-doc
-    type: doc                # → /unrelated-standalone-doc/
+    type: doc
+    title: "Unrelated Standalone Doc"
+                             # → /unrelated-standalone-doc/
 ```
+
+### 5.3 Groups
+
+Groups scope one or more course/doc entries under a shared URL-path prefix and
+allow a single token to cover all member projects (§8.1).
+
+**Create a group before adding members:**
+
+```bash
+matctl group add <name> --title "Human-Readable Title"
+```
+
+No directory is created; only a `type: group` entry is written to `projects.yml`.
+
+**Remove a group:**
+
+```bash
+matctl group remove <name> [--yes]
+```
+
+Fails if any course or doc entry still references the group. Remove or re-group
+dependents first.
+
+**Modify a group's title:**
+
+```bash
+matctl group modify <name> --title "New Title"
+```
+
+Updates the manifest only. (The group landing page is regenerated from the
+manifest by REQ-009 tooling.)
 
 Render and deploy rules by type:
 
@@ -287,7 +333,27 @@ matctl course remove <course> --yes    # no prompt, for scripting
   dead keys. Revoke them with `matctl token revoke <token>` (§8.3) if you want
   to clean up KV.
 
-### 6.3 First publish after adding a course
+### 6.3 Modifying a course
+
+```bash
+matctl course modify <course> --title "New Title"
+matctl course modify <course> --group <group>
+matctl course modify <course> --group ""          # remove grouping (root-level deploy)
+```
+
+At least one of `--title` / `--group` must be supplied; omitting both is a
+usage error (exit code 2).
+
+`--title` updates the `title` field in `projects.yml`, `<course>/_quarto.yml`
+(`book.title`), and leaves `<course>/index.qmd` unchanged (that file's
+`title: "Welcome"` is a per-page heading, not the course title).
+
+`--group` updates the `group` field in the manifest. Pass an empty string
+(`--group ""`) to remove grouping — the project will then deploy at root level
+on next CI run. **Changing or removing the group does not move remote content.**
+A stale-path warning is printed; clean up the old deploy path manually via SSH.
+
+### 6.4 First publish after adding a course
 
 ```bash
 git add <course>/ projects.yml
@@ -338,7 +404,21 @@ matctl doc remove <name> --yes    # no prompt, for scripting
 `./<name>/` from disk. Remote content must be cleaned up manually (same
 caveats as §6.2).
 
-### 7.3 First publish after adding a document
+### 7.3 Modifying a document
+
+```bash
+matctl doc modify <name> --title "New Title"
+matctl doc modify <name> --group <group>
+matctl doc modify <name> --group ""              # remove grouping
+```
+
+`--title` updates `title` in `projects.yml` and rewrites the `title:` key in
+`<name>/index.qmd` front matter. The document body and all other front-matter
+keys are preserved.
+
+`--group` behaviour is identical to `matctl course modify --group` (§6.3).
+
+### 7.4 First publish after adding a document
 
 ```bash
 git add <name>/ projects.yml
