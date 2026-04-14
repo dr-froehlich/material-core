@@ -245,8 +245,40 @@ dependents first.
 matctl group modify <name> --title "New Title"
 ```
 
-Updates the manifest only. (The group landing page is regenerated from the
-manifest by REQ-009 tooling.)
+Updates `title` in `projects.yml` and regenerates `<group>/index.html`.
+
+#### Group landing pages
+
+When a group has at least one child (course or doc), matctl writes a static
+`<group>/index.html` listing every child project as a link. This file is a
+committed artefact — `git add <group>/index.html` and push it alongside any
+manifest change.
+
+**On-disk invariant:** `<group>/` exists on disk ⟺ the group has at least one
+child. matctl creates and removes the directory automatically. If the directory
+contains other files (e.g. a user stash), removal is skipped with a warning.
+
+**Regeneration triggers** — every mutating matctl command regenerates the
+landing pages of all affected groups after `save_manifest`:
+
+| Command | Groups regenerated |
+|---|---|
+| `course add` / `doc add` | the new entry's `group` (if any) |
+| `course remove` / `doc remove` | the removed entry's `group` (if any) |
+| `course modify --title` / `doc modify --title` | the entry's current `group` (if any) |
+| `course modify --group X` / `doc modify --group X` | the **old** group and the **new** group |
+| `group add` | the group itself (always a no-op on disk — no children yet) |
+| `group modify --title` | the group itself |
+| `group remove` | skipped — group entry is already gone and was empty by precondition |
+
+**URL:** `https://material.professorfroehlich.de/<group>/` serves the landing
+page. A group-scoped token (issued as `matctl token issue <group> "..."`)
+covers the landing page and every child project under it with a single cookie.
+
+**CI deploy:** the `landing` job in `publish.yml` deploys `<group>/index.html`
+to `httpdocs/<group>/index.html` after the `build` job completes. It uses the
+committed file — no generation occurs in CI. If no group has a committed
+`index.html`, the job is a no-op.
 
 Render and deploy rules by type:
 

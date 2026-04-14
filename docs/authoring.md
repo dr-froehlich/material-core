@@ -532,6 +532,15 @@ no extra token management needed.
 
 ---
 
+### Grouped projects and the landing page
+
+When a course or doc is added with `--group <name>`, it deploys under
+`<group>/<name>/` and the token URL you distribute points at the group
+landing page (`<group>/`), not at an individual child. Students who follow
+that group-scoped link receive one cookie that covers every project in the
+group — they can navigate between courses and documents without a second
+token prompt. See §5.3 and §8.1 of `administration.md` for details.
+
 ### When to use a separate project instead
 
 Use a separate project (`matctl doc add`) when the document:

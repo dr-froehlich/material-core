@@ -15,6 +15,7 @@ import click
 from ruamel.yaml import YAML
 
 from ._cloudflare import KVClient, load_credentials
+from ._landing import regenerate_group
 from ._projects import (
     PROJECTS_FILE,
     add_group,
@@ -45,6 +46,15 @@ _UNSET: object = object()
 
 def _package_root() -> Path:
     return Path(str(files("material_core")))
+
+
+def _regenerate_affected_groups(manifest, *groups: str | None) -> None:
+    """Regenerate each unique, non-None group's landing page."""
+    seen: set[str] = set()
+    for g in groups:
+        if g and g not in seen:
+            seen.add(g)
+            regenerate_group(Path.cwd(), g, manifest)
 
 
 def _scaffold_project(
@@ -85,6 +95,7 @@ def _scaffold_project(
     substitute_placeholders(dest, placeholders)
     add_project(manifest, name, project_type, title, group=group)
     save_manifest(manifest_path, manifest)
+    _regenerate_affected_groups(manifest, group)
 
     click.echo(f"created {project_type} {name}")
     click.echo("next steps:")
@@ -126,6 +137,7 @@ def _remove_project(label: str, name: str, yes: bool) -> None:
     if in_manifest:
         remove_project(manifest, name)
         save_manifest(manifest_path, manifest)
+        _regenerate_affected_groups(manifest, group)
         removed.append(f"{PROJECTS_FILE} entry")
     if dir_exists:
         shutil.rmtree(dest)
@@ -512,6 +524,7 @@ def _modify_project(
             f"{name} is a {actual_type!r}, not a {label!r}"
         )
 
+    old_group = entry.get("group")
     changes: list[str] = []
     group_changed = False
 
@@ -546,6 +559,11 @@ def _modify_project(
             group_changed = True
 
     save_manifest(manifest_path, manifest)
+
+    if group_changed:
+        _regenerate_affected_groups(manifest, old_group, entry.get("group"))
+    else:
+        _regenerate_affected_groups(manifest, old_group)
 
     click.echo(f"modified {label} {name}: {', '.join(changes)}")
     if group_changed:
@@ -620,6 +638,7 @@ def group_add(name: str, title: str) -> None:
     except ValueError as exc:
         raise click.ClickException(str(exc)) from None
     save_manifest(manifest_path, manifest)
+    regenerate_group(Path.cwd(), name, manifest)
     click.echo(f"created group {name}")
 
 
@@ -685,6 +704,7 @@ def group_modify(name: str, title: object) -> None:
         )
     entry["title"] = title
     save_manifest(manifest_path, manifest)
+    regenerate_group(Path.cwd(), name, manifest)
     click.echo(f"modified group {name}: title → {title!r}")
 
 
