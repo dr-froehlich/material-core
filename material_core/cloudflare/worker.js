@@ -3,7 +3,8 @@
  *
  * Flow:
  *   1. Check for a valid signed session cookie (fast path, no KV read)
- *   2. Check ?token= query param → KV lookup → verify course matches URL path
+ *   2. Check ?token= query param → KV lookup → verify the token's scope
+ *      covers the requested path
  *   3. Valid: set cookie, redirect to clean URL (no token param)
  *   4. Invalid/missing: serve 403 page
  *
@@ -12,9 +13,11 @@
  *   COOKIE_SECRET   — random 32-char hex string for HMAC signing
  *
  * KV value schema:
- *   { "course": "digital-und-mikrocomputertechnik", "label": "WS2025/26",
+ *   { "course": "mk4-26", "label": "WS2025/26",
  *     "issued": "2025-09-01", "expires": "2026-09-30" }
- *   Use course = "*" to grant access to all courses.
+ *   The `course` field is a URL-path scope of arbitrary depth. A request is
+ *   authorized when its pathname starts with "/<scope>/" (or equals "/<scope>").
+ *   Use course = "*" to grant access to everything.
  */
 
 const COOKIE_NAME = "mat_session";
@@ -28,20 +31,15 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Extract the course slug from the first path segment:
-    //   /digital-und-mikrocomputertechnik/... → "digital-und-mikrocomputertechnik"
-    const course = url.pathname.split("/").filter(Boolean)[0] || null;
-
-    // No course prefix → nothing to protect (e.g. bare domain root, favicon)
-    if (!course) {
-      return fetch(request);
-    }
-
     // 1. Fast path: valid signed cookie
     const cookieHeader = request.headers.get("Cookie") || "";
     const sessionValue = getCookie(cookieHeader, COOKIE_NAME);
     if (sessionValue) {
-      const payload = await verifySessionCookie(sessionValue, course, env.COOKIE_SECRET);
+      const payload = await verifySessionCookie(
+        sessionValue,
+        url.pathname,
+        env.COOKIE_SECRET,
+      );
       if (payload) {
         return fetch(request); // authenticated, pass through to origin
       }
@@ -51,11 +49,15 @@ export default {
     const token = url.searchParams.get("token");
     if (token) {
       const record = await lookupToken(token, env.LECTURE_TOKENS);
-      if (record && isAuthorized(record, course)) {
-        // Issue session cookie and redirect to clean URL (no ?token=)
+      if (record && isAuthorized(record, url.pathname)) {
+        // Issue session cookie scoped to the token's scope and redirect to
+        // the clean URL (no ?token=).
         const cleanUrl = new URL(request.url);
         cleanUrl.searchParams.delete("token");
-        const cookieValue = await makeSessionCookie(course, env.COOKIE_SECRET);
+        const cookieValue = await makeSessionCookie(
+          record.course,
+          env.COOKIE_SECRET,
+        );
         return new Response(null, {
           status: 302,
           headers: {
@@ -69,7 +71,7 @@ export default {
     }
 
     // 3. No valid auth
-    return forbidden(course);
+    return forbidden(url.pathname);
   },
 };
 
@@ -90,8 +92,10 @@ async function lookupToken(token, kv) {
   }
 }
 
-function isAuthorized(record, course) {
-  return record.course === "*" || record.course === course;
+function isAuthorized(record, pathname) {
+  if (record.course === "*") return true;
+  const prefix = "/" + record.course;
+  return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
 // ---------------------------------------------------------------------------
@@ -107,32 +111,47 @@ function getCookie(cookieHeader, name) {
 }
 
 /**
- * Cookie value format: "<course>.<expiry-unix>.<hmac-hex>"
- * Signed with HMAC-SHA256 over "<course>.<expiry-unix>" using COOKIE_SECRET.
+ * Cookie value format: "<scope>.<expiry-unix>.<hmac-hex>"
+ * Signed with HMAC-SHA256 over "<scope>.<expiry-unix>" using COOKIE_SECRET.
+ *
+ * The scope string may contain "/" (grouped scope) but must not contain ".",
+ * since "." is the cookie-value delimiter. Group names are restricted to the
+ * slug regex [a-z0-9][a-z0-9._-]* — in practice current names use no dot,
+ * but we fail loudly here rather than issue a cookie that will not verify.
  */
-async function makeSessionCookie(course, secret) {
+async function makeSessionCookie(scope, secret) {
+  if (scope.includes(".")) {
+    throw new Error(
+      `session scope must not contain '.'; got ${JSON.stringify(scope)}`,
+    );
+  }
   const expiry = Math.floor(Date.now() / 1000) + COOKIE_MAX_AGE;
-  const message = `${course}.${expiry}`;
+  const message = `${scope}.${expiry}`;
   const sig = await hmacHex(secret, message);
   return `${message}.${sig}`;
 }
 
-async function verifySessionCookie(value, course, secret) {
+async function verifySessionCookie(value, pathname, secret) {
   const parts = value.split(".");
   if (parts.length < 3) return null;
   const sig = parts.pop();
   const message = parts.join(".");
-  const [cookieCourse, expiryStr] = parts;
+  const [cookieScope, expiryStr] = parts;
   const expiry = parseInt(expiryStr, 10);
   if (isNaN(expiry) || expiry < Math.floor(Date.now() / 1000)) return null;
-  if (cookieCourse !== course && cookieCourse !== "*") return null;
+  if (cookieScope !== "*") {
+    const prefix = "/" + cookieScope;
+    if (pathname !== prefix && !pathname.startsWith(prefix + "/")) {
+      return null;
+    }
+  }
   const expectedSig = await hmacHex(secret, message);
   // Constant-time comparison
   if (sig.length !== expectedSig.length) return null;
   let diff = 0;
   for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expectedSig.charCodeAt(i);
   if (diff !== 0) return null;
-  return { course: cookieCourse, expiry };
+  return { scope: cookieScope, expiry };
 }
 
 function buildCookieHeader(value) {
@@ -169,7 +188,7 @@ async function hmacHex(secret, message) {
 // 403 page
 // ---------------------------------------------------------------------------
 
-function forbidden(course) {
+function forbidden(pathname) {
   const html = `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -207,7 +226,7 @@ function forbidden(course) {
     <h1>Zugriff nicht möglich</h1>
     <p>Diese Seite ist nur mit einem gültigen Zugangslink erreichbar.</p>
     <p>Den Link findesn Sie im zugehörigen <strong>iLearn-Kurs</strong>.</p>
-    <p class="hint">Kurs: <code>${escapeHtml(course)}</code></p>
+    <p class="hint">Pfad: <code>${escapeHtml(pathname)}</code></p>
   </div>
 </body>
 </html>`;

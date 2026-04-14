@@ -46,12 +46,16 @@ def project_names(doc: CommentedMap) -> list[str]:
     return [p["name"] for p in doc["projects"]]
 
 
-def add_project(doc: CommentedMap, name: str, type_: str) -> None:
+def add_project(
+    doc: CommentedMap, name: str, type_: str, group: str | None = None
+) -> None:
     if name in project_names(doc):
         raise ValueError(f"{name} already in manifest")
     entry = CommentedMap()
     entry["name"] = name
     entry["type"] = type_
+    if group is not None:
+        entry["group"] = group
     doc["projects"].append(entry)
 
 

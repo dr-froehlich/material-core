@@ -44,11 +44,16 @@ def _scaffold_project(
     name: str,
     placeholders: dict[str, str],
     next_steps: list[str],
+    group: str | None = None,
 ) -> None:
     """Validate, copy template, substitute placeholders, patch manifest, echo."""
     if not _NAME_RE.fullmatch(name):
         raise click.ClickException(
             f"invalid {project_type} name {name!r}: must match [a-z0-9][a-z0-9._-]*"
+        )
+    if group is not None and not _NAME_RE.fullmatch(group):
+        raise click.ClickException(
+            f"invalid group name {group!r}: must match [a-z0-9][a-z0-9._-]*"
         )
     cwd = Path.cwd()
     manifest_path = cwd / PROJECTS_FILE
@@ -63,7 +68,7 @@ def _scaffold_project(
 
     copy_template(template_subdir, dest)
     substitute_placeholders(dest, placeholders)
-    add_project(manifest, name, project_type)
+    add_project(manifest, name, project_type, group=group)
     save_manifest(manifest_path, manifest)
 
     click.echo(f"created {project_type} {name}")
@@ -95,6 +100,13 @@ def _remove_project(label: str, name: str, yes: bool) -> None:
         ):
             raise click.ClickException("aborted")
 
+    group: str | None = None
+    if in_manifest:
+        for p in manifest["projects"]:
+            if p["name"] == name:
+                group = p.get("group")
+                break
+
     removed = []
     if in_manifest:
         remove_project(manifest, name)
@@ -105,9 +117,15 @@ def _remove_project(label: str, name: str, yes: bool) -> None:
         removed.append(f"directory ./{name}/")
 
     click.echo(f"removed: {', '.join(removed)}")
+    if group:
+        remote_path = f"{group}/{name}/"
+    elif in_manifest:
+        remote_path = f"{name}/"
+    else:
+        remote_path = f"{name}/ (remote path depends on the original group, if any)"
     click.echo(
         f"note: remote content at material.professorfroehlich.de/"
-        f"{name}/ and any issued access tokens are NOT touched by this "
+        f"{remote_path} and any issued access tokens are NOT touched by this "
         "command — see docs/administration.md for manual cleanup."
     )
 
@@ -178,7 +196,14 @@ def course() -> None:
     default="",
     help="Optional subtitle (default: empty).",
 )
-def course_add(name: str, title: str | None, subtitle: str) -> None:
+@click.option(
+    "--group",
+    default=None,
+    help="Optional URL-path group; deploys under <group>/<name>/.",
+)
+def course_add(
+    name: str, title: str | None, subtitle: str, group: str | None
+) -> None:
     """Scaffold a new course and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
     _scaffold_project(
@@ -196,6 +221,7 @@ def course_add(name: str, title: str | None, subtitle: str) -> None:
             f"git commit -m 'Add course: {name}'",
             "git push",
         ],
+        group=group,
     )
 
 
@@ -219,7 +245,12 @@ def doc() -> None:
     default=None,
     help="Human-readable title (default: <name> title-cased).",
 )
-def doc_add(name: str, title: str | None) -> None:
+@click.option(
+    "--group",
+    default=None,
+    help="Optional URL-path group; deploys under <group>/<name>/.",
+)
+def doc_add(name: str, title: str | None, group: str | None) -> None:
     """Scaffold a new standalone document and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
     _scaffold_project(
@@ -236,6 +267,7 @@ def doc_add(name: str, title: str | None) -> None:
             f"git commit -m 'Add doc: {name}'",
             "git push",
         ],
+        group=group,
     )
 
 

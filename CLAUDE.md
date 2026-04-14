@@ -41,12 +41,16 @@ material-core/
   checkout. With `pipx install --editable`, symlinks resolve into the live
   source tree, so SCSS edits are immediately visible to `quarto preview`.
 - `matctl unlink` — remove the symlinks.
-- `matctl course add <name> [--title "..."] [--subtitle "..."]` — scaffold a
-  new course from the template and register it in `projects.yml`.
+- `matctl course add <name> [--title "..."] [--subtitle "..."] [--group <name>]`
+  — scaffold a new course from the template and register it in `projects.yml`.
+  `--group` writes an optional `group:` field onto the entry; the project then
+  deploys under `<group>/<name>/` and shares its access scope with other
+  projects in the same group.
 - `matctl course remove <name> [--yes]` — remove the course directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
-- `matctl doc add <name> [--title "..."]` — scaffold a new standalone document
-  (single `index.qmd`, no slides) and register it in `projects.yml`.
+- `matctl doc add <name> [--title "..."] [--group <name>]` — scaffold a new
+  standalone document (single `index.qmd`, no slides) and register it in
+  `projects.yml`. `--group` behaves as for `course add`.
 - `matctl doc remove <name> [--yes]` — remove the document directory and
   manifest entry (remote content must be cleaned up manually).
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
@@ -62,7 +66,7 @@ material-core/
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.4.0"
+pipx install "git+https://github.com/pfroehlich/material-core@v0.5.0"
 matctl link
 quarto render <course>
 ```
@@ -95,4 +99,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths).

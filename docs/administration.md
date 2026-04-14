@@ -13,9 +13,10 @@ Lecture scripts and slides for all THD courses live in this monorepo as Quarto
 projects. Pushing to `main` triggers GitHub Actions, which renders the changed
 courses (HTML book + Typst PDF + RevealJS slides) and deploys them via
 `sshpass`+`scp` to Netcup webhosting under
-`material.professorfroehlich.de/<course>/`. A Cloudflare Worker sits in front
-of the subdomain and gates every request against per-course tokens stored in a
-Workers KV namespace. Students receive a tokenised link via iLearn; the Worker
+`material.professorfroehlich.de/<name>/` (or `…/<group>/<name>/` for projects
+that declare a `group` in the manifest — see §5.1). A Cloudflare Worker sits in
+front of the subdomain and gates every request against access tokens stored in
+a Workers KV namespace. Students receive a tokenised link via iLearn; the Worker
 exchanges the token for a year-long signed session cookie on first visit.
 
 ---
@@ -89,9 +90,12 @@ stateDiagram-v2
     Forbidden --> [*]: 403 page
 ```
 
-The cookie is `mat_session = <course>.<expiry>.<HMAC-SHA256>` signed with
-`COOKIE_SECRET`. Validity: 1 year. A `course="*"` token grants access to all
-courses.
+The cookie is `mat_session = <scope>.<expiry>.<HMAC-SHA256>` signed with
+`COOKIE_SECRET`, where `<scope>` is the token's `course` field stored verbatim.
+Authorization passes when the request path starts with `/<scope>/` (or equals
+`/<scope>`). Validity: 1 year. A `course="*"` token grants access to
+everything. The KV field name remains `course` for backwards compatibility
+even though it semantically represents a URL-path scope of arbitrary depth.
 
 ---
 
@@ -135,7 +139,7 @@ paste into the Cloudflare dashboard editor and click *Deploy*. There is no
 |---|---|
 | Subdomain | `material.professorfroehlich.de` (created in CCP → Subdomains) |
 | Webroot | `/material.professorfroehlich.de/httpdocs/` |
-| Per-course tree | `httpdocs/<course>/` (book HTML, PDF, `slides/`) |
+| Per-project tree | `httpdocs/<name>/` (or `httpdocs/<group>/<name>/` when grouped — book HTML, PDF, `slides/` for courses) |
 | Access | Same SSH credentials as `pfhome`; `scp` only (no rsync) |
 
 ### Local admin machine
@@ -172,6 +176,30 @@ Schema:
 projects:
   - name: <directory-name>   # also the URL path segment under material.professorfroehlich.de/
     type: course | doc
+    group: <optional>        # optional: URL-path group; project deploys under <group>/<name>/
+```
+
+Field reference:
+
+| Field | Required | Purpose |
+|---|---|---|
+| `name` | yes | Directory name in the repo; also the last URL path segment (or the sole one, if ungrouped). Must match `[a-z0-9][a-z0-9._-]*`. |
+| `type` | yes | `course` or `doc` — selects render/deploy rules. |
+| `group` | no | Shared URL-path scope under which this project deploys. When set, the deploy target is `httpdocs/<group>/<name>/` and the public URL becomes `material.professorfroehlich.de/<group>/<name>/`. A single token issued for `<group>` covers every project sharing that group. Must match `[a-z0-9][a-z0-9._-]*`. |
+
+Worked example — two projects co-deployed under the `mk4-26` group plus one
+ungrouped doc:
+
+```yaml
+projects:
+  - name: digital-und-mikrocomputertechnik
+    type: course
+    group: mk4-26            # → /mk4-26/digital-und-mikrocomputertechnik/
+  - name: esp-survival-guide
+    type: doc
+    group: mk4-26            # → /mk4-26/esp-survival-guide/
+  - name: unrelated-standalone-doc
+    type: doc                # → /unrelated-standalone-doc/
 ```
 
 Render and deploy rules by type:
@@ -180,6 +208,10 @@ Render and deploy rules by type:
 |---|---|---|
 | `course` | `quarto render <name>` + `quarto render <name>/slides` | `<name>/_output/book/*` → webroot; `<name>/slides/_output/*` → `<webroot>/slides/` |
 | `doc`    | `quarto render <name>` | `<name>/_output/*` → webroot |
+
+Where `webroot` resolves to `httpdocs/<group>/<name>/` when the project has a
+`group`, otherwise `httpdocs/<name>/`. Grouping is deploy-time only — Quarto
+still renders into `<name>/_output/...` as if ungrouped.
 
 Change detection: the workflow diffs the push against its base. A project is
 rebuilt only when at least one changed file lives under `<name>/`. Changes to
@@ -347,6 +379,27 @@ https://material.professorfroehlich.de/<course>/?token=<TOKEN>
 
 Paste that link into the iLearn course. Students who follow it once receive a
 1-year session cookie and can bookmark the clean URL.
+
+**Scoped tokens — grouped projects.** The `<course>` argument is treated as a
+URL-path scope by the Worker; the authorization rule is "request path starts
+with `/<scope>/`, or equals `/<scope>`." This gives three useful granularities:
+
+```bash
+# Group-wide — covers every project deployed under httpdocs/mk4-26/
+matctl token issue mk4-26 "WS2026 Gesamtgruppe"
+# → https://material.professorfroehlich.de/mk4-26/?token=...
+
+# Single project inside a group — covers only that subtree
+matctl token issue mk4-26/esp-survival-guide "Person X"
+# → https://material.professorfroehlich.de/mk4-26/esp-survival-guide/?token=...
+
+# Ungrouped (root-level) project — unchanged from pre-group behaviour
+matctl token issue digital-und-mikrocomputertechnik "WS2025/26"
+# → https://material.professorfroehlich.de/digital-und-mikrocomputertechnik/?token=...
+```
+
+A student entering via the group token receives one cookie that covers every
+project in the group, so cross-document links navigate without re-auth.
 
 ### 8.2 List tokens
 
