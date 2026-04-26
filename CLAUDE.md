@@ -4,8 +4,11 @@
 
 Engineering tooling for the [`material`](https://github.com/pfroehlich/material)
 content repository: the `matctl` Python CLI, the brand registry (`brands/`,
-`shared/`), the Cloudflare access Worker, the course scaffolder template, and
-all engineering documentation.
+`shared/`), the Cloudflare access Worker, and the course scaffolder template.
+
+**User-facing documentation** (authoring guide and administration manual) lives
+in `material/material/` as a rendered Quarto book — see `material/material/chapters/`.
+Engineering internals (plans, requirements) remain here under `docs/`.
 
 `material-core` is consumed by `material` via a pinned git tag — no PyPI
 release. Local development uses an editable `pipx` install so SCSS/brand edits
@@ -34,8 +37,6 @@ material-core/
     templates/slides/          — optional slides overlay
     templates/_quarto.common.fragment.yml — shared Quarto keys
   docs/
-    administration.md          — ops reference (arch, deploy, tokens, brands §9)
-    authoring.md               — Quarto authoring reference for content authors
     plans/                     — implementation plans (e.g. req-001-repo-split.md)
     requirements/              — requirements tracking (see Requirements_Management.md)
 
