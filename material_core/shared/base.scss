@@ -1,39 +1,35 @@
 // ============================================================
 // Shared base styles — applied to both HTML book and RevealJS
+// Brand variables ($brand-primary, $brand-secondary, $brand-accent,
+// $brand-footer-text) are defined in brands/<brand>/brand.scss,
+// which must be loaded before this file.
 // ============================================================
-
-/*-- scss:defaults --*/
-
-// Brand colors (mirrors _brand.yml for direct SCSS use)
-$thd-blue:       #1a4273;
-$thd-blue-light: #e8f0f7;
-$thd-accent:     #e87722;
 
 /*-- scss:rules --*/
 
 // ── HTML Book ───────────────────────────────────────────────
 
 .book .book-summary {
-  border-right: 2px solid $thd-blue-light;
+  border-right: 2px solid $brand-secondary;
 }
 
 h1, h2, h3 {
-  color: $thd-blue;
+  color: $brand-primary;
 }
 
 // Callout styling
 .callout-note {
-  border-left-color: $thd-blue;
+  border-left-color: $brand-primary;
 }
 
 .callout-tip {
-  border-left-color: $thd-accent;
+  border-left-color: $brand-accent;
 }
 
 // Exercise blocks
 .exercise {
-  background: $thd-blue-light;
-  border-left: 4px solid $thd-blue;
+  background: $brand-secondary;
+  border-left: 4px solid $brand-primary;
   padding: 1em 1.2em;
   margin: 1.5em 0;
   border-radius: 0 4px 4px 0;
@@ -49,21 +45,30 @@ h1, h2, h3 {
   }
 
   h1, h2 {
-    color: $thd-blue;
+    color: $brand-primary;
     font-family: "Saira", sans-serif;
   }
 
   .footer {
     font-size: 0.55em;
-    color: lighten($thd-blue, 20%);
+    color: lighten($brand-primary, 20%);
+  }
+
+  .footer::after {
+    content: $brand-footer-text;
   }
 
   // Highlight box on slides
   .highlight-box {
-    background: $thd-blue-light;
-    border: 2px solid $thd-blue;
+    background: $brand-secondary;
+    border: 2px solid $brand-primary;
     border-radius: 6px;
     padding: 0.6em 1em;
     margin: 0.5em 0;
   }
+}
+
+// Guard: prevent empty footer pseudo-element from adding space
+.reveal .footer:empty {
+  display: none;
 }

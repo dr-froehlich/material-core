@@ -1,0 +1,33 @@
+color:
+  palette:
+    brand-primary:   "#1a4273"
+    brand-secondary: "#e8f0f7"
+    brand-accent:    "#e87722"
+    white:           "#ffffff"
+    text:            "#1a1a1a"
+  primary:    brand-primary
+  secondary:  brand-secondary
+  foreground: text
+  background: white
+
+typography:
+  fonts:
+    - family: Saira
+      source: file
+      files:
+        - path: shared/assets/fonts/Saira-VariableFont_wdth,wght.ttf
+          style: normal
+        - path: shared/assets/fonts/Saira-Italic-VariableFont_wdth,wght.ttf
+          style: italic
+    - family: Daniel
+      source: file
+      files:
+        - path: shared/assets/fonts/Daniel-Regular.otf
+          weight: 400
+        - path: shared/assets/fonts/Daniel-Bold.otf
+          weight: 700
+        - path: shared/assets/fonts/Daniel-Black.otf
+          weight: 900
+  base-size:      1rem
+  line-height:    1.6
+  monospace-size: 0.85em

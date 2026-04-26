@@ -38,7 +38,19 @@ def substitute_placeholders(root: Path, values: dict[str, str]) -> None:
         for token, value in values.items():
             new = new.replace(token, value)
         if new != content:
+            if p.suffix in (".yml", ".yaml"):
+                new = _strip_blank_lines(new)
             p.write_text(new, encoding="utf-8")
+
+
+def _strip_blank_lines(text: str) -> str:
+    """Remove lines that are empty or contain only whitespace (post-substitution)."""
+    lines = text.split("\n")
+    filtered = [line for line in lines if line.strip()]
+    # Preserve trailing newline if original had one
+    if text.endswith("\n"):
+        filtered.append("")
+    return "\n".join(filtered)
 
 
 def title_case_from_slug(name: str) -> str:

@@ -6,8 +6,9 @@ format:
   revealjs:
     theme:
       - default
+      - ../../brand.scss
       - ../../shared/base.scss
-    logo:           THD-logo.png
+    {{LOGO_LINE}}
     footer:         "{{COURSE_TITLE}} — Prof. Dr.-Ing. Peter Fröhlich"
     slide-number:   true
     show-slide-number: speaker

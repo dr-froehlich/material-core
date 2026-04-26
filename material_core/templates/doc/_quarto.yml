@@ -8,6 +8,7 @@ format:
   html:
     theme:
       - cosmo
+      - ../brand.scss
       - ../shared/base.scss
     toc: true
     toc-depth: 3

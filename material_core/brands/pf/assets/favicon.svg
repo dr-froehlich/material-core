@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="237.74"
+   height="322.26"
+   version="1.1"
+   viewBox="0 0 237.74 322.26"
+   id="svg1"
+   sodipodi:docname="logo_pf.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.4196611"
+     inkscape:cx="-4.2263608"
+     inkscape:cy="93.332134"
+     inkscape:window-width="1443"
+     inkscape:window-height="963"
+     inkscape:window-x="60"
+     inkscape:window-y="151"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg1" />
+  <desc
+     id="desc1">pf_logo4.dxf - scale = 1.000000, origin = (0.000000, 0.000000), method = manual</desc>
+  <path
+     d="M 104.629,142.228 H 38.298 V 38.288 h 97.745 L 147.467,0.493 H 0.507 v 321.26 h 37.796 v -141.73 h 54.908 z"
+     id="path2"
+     style="fill:#d99d44;fill-opacity:1" />
+  <path
+     d="m 180.23,49.92 11.423,-37.796 -1.1e-4,3.4e-4 c 36.549,20.669 53.886,63.912 41.739,104.11 -12.148,40.193 -50.535,66.594 -92.414,63.559 l -2e-5,-4.8e-4 11.423,-37.795 2.8e-4,2e-4 c 21.001,-2.0032 38.708,-16.504 44.811,-36.698 6.103,-20.194 -0.60693,-42.075 -16.983,-55.375 z"
+     id="path1"
+     style="fill:#e1c3a0;fill-opacity:1" />
+</svg>

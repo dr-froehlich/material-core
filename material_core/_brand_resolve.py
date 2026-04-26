@@ -1,0 +1,87 @@
+"""Per-project brand symlink wiring and placeholder helpers.
+
+Private module — used by `matctl course/doc add`, `matctl course/doc modify`,
+and `matctl link/unlink`.
+
+Each project directory gets three brand-specific symlinks:
+  <project>/_brand.yml    → pkg/brands/<brand>/_brand.yml
+  <project>/brand.scss    → pkg/brands/<brand>/brand.scss
+  <project>/brand-assets/ → pkg/brands/<brand>/assets/
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+
+_BRAND_SYMLINKS = ("_brand.yml", "brand.scss", "brand-assets")
+
+
+def link_project(
+    project_dir: Path,
+    brand: str,
+    pkg_root: Path,
+    force: bool = False,
+) -> None:
+    """Create the three per-project brand symlinks inside project_dir."""
+    brand_dir = pkg_root / "brands" / brand
+    targets = {
+        "_brand.yml": brand_dir / "_brand.yml",
+        "brand.scss": brand_dir / "brand.scss",
+        "brand-assets": brand_dir / "assets",
+    }
+    for link_name, src in targets.items():
+        dst = project_dir / link_name
+        if dst.is_symlink() or dst.exists():
+            if not force:
+                continue
+            if dst.is_symlink() or dst.is_file():
+                dst.unlink()
+            else:
+                import shutil
+                shutil.rmtree(dst)
+        dst.symlink_to(src)
+
+
+def unlink_project(project_dir: Path) -> None:
+    """Remove the three per-project brand symlinks if they point into a brands/ dir."""
+    for link_name in _BRAND_SYMLINKS:
+        dst = project_dir / link_name
+        if not dst.is_symlink():
+            continue
+        try:
+            target = os.readlink(dst)
+        except OSError:
+            continue
+        if "brands" in Path(target).parts:
+            dst.unlink()
+
+
+def relink_project(project_dir: Path, new_brand: str, pkg_root: Path) -> None:
+    """Switch an existing project to a new brand: unlink then link."""
+    unlink_project(project_dir)
+    link_project(project_dir, new_brand, pkg_root, force=True)
+
+
+def brand_placeholders(brand: str) -> dict[str, str]:
+    """Return the YAML placeholder substitutions for a given brand."""
+    if brand == "generic":
+        return {
+            "{{LOGO_LINE}}": "",
+            "{{FAVICON_LINE}}": "",
+        }
+    logo_files = {
+        "thd": "THD-logo.png",
+        "pf": "logo_pf.svg",
+    }
+    favicon_files = {
+        "thd": "favicon.png",
+        "pf": "favicon.svg",
+    }
+    logo = logo_files.get(brand, f"logo_{brand}.png")
+    favicon = favicon_files.get(brand, f"favicon_{brand}.png")
+    return {
+        "{{LOGO_LINE}}": f"logo:   brand-assets/{logo}",
+        "{{FAVICON_LINE}}": f"favicon:  brand-assets/{favicon}",
+    }

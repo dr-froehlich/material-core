@@ -14,6 +14,6 @@
 | REQ-010 | Correct document language in scaffolded templates (`lang:` not `book.language`) | DONE | [REQ-010](REQ-010.md) | REQ-005 |
 | REQ-012 | Fix book chapter numbering and document heading conventions | DONE | [REQ-012](REQ-012.md) | REQ-005 |
 | REQ-013 | Orthogonal universal document creation — chapters × slides × brand | OPEN | [REQ-013](REQ-013.md) | REQ-005, REQ-012, REQ-014 |
-| REQ-014 | Multi-brand support — visual brand registry in `material-core` | OPEN | [REQ-014](REQ-014.md) | REQ-008 |
+| REQ-014 | Multi-brand support — visual brand registry in `material-core` | DONE | [REQ-014](REQ-014.md) | REQ-008 |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)

@@ -3,7 +3,7 @@
 ## What this repo is
 
 Engineering tooling for the [`material`](https://github.com/pfroehlich/material)
-content repository: the `matctl` Python CLI, shared branding (`_brand.yml`,
+content repository: the `matctl` Python CLI, the brand registry (`brands/`,
 `shared/`), the Cloudflare access Worker, the course scaffolder template, and
 all engineering documentation.
 
@@ -22,14 +22,16 @@ material-core/
   material_core/
     cli.py                     — matctl commands
     _landing.py                — group landing page generator (regenerates <group>/index.html)
-    _brand.yml                 — brand file shipped as package data
-    shared/                    — SCSS, fonts, logo, diagram assets
+    _brand_resolve.py          — per-project brand symlink wiring + placeholder helpers
+    _projects.py               — manifest helpers (includes available_brands, resolve_brand)
+    brands/                    — per-brand visual assets (generic, thd, pf)
+    shared/                    — brand-neutral: base.scss, fonts, typst-show.typ, colors.tex
     cloudflare/worker.js       — token-validating access Worker
     scripts/.env               — Cloudflare credentials (gitignored; read by matctl token)
     templates/course/          — course scaffolding template
     templates/doc/             — standalone document scaffolding template
   docs/
-    administration.md          — ops reference (arch, deploy, tokens)
+    administration.md          — ops reference (arch, deploy, tokens, brands §9)
     authoring.md               — Quarto authoring reference for content authors
     plans/                     — implementation plans (e.g. req-001-repo-split.md)
     requirements/              — requirements tracking (see Requirements_Management.md)
@@ -40,11 +42,12 @@ material/ (content repo, consumed separately):
 
 ## matctl CLI
 
-- `matctl link` — symlink `_brand.yml` and `shared/` from this package into the
-  current working directory. Intended to be run from inside a `material`
-  checkout. With `pipx install --editable`, symlinks resolve into the live
-  source tree, so SCSS edits are immediately visible to `quarto preview`.
-- `matctl unlink` — remove the symlinks.
+- `matctl link [--force]` — at the repo root: fan out per-project brand symlinks
+  (`_brand.yml`, `brand.scss`, `brand-assets/`) for every course/doc entry, plus
+  the root-level `shared/` symlink. Inside a project directory: wire just that
+  project. With `pipx install --editable`, symlinks resolve into the live source
+  tree, so SCSS edits are immediately visible to `quarto preview`.
+- `matctl unlink` — remove the per-project brand symlinks (and `shared/` at root).
 - `matctl group add <name> --title "..."` — register a new group in
   `projects.yml`. No directory created. Groups must exist before any course or
   doc can reference them via `--group`. Regenerates `<group>/index.html`
@@ -54,27 +57,28 @@ material/ (content repo, consumed separately):
   already empty by precondition.
 - `matctl group modify <name> --title "..."` — update the group's title in the
   manifest and regenerate `<group>/index.html`.
-- `matctl course add <name> [--title "..."] [--subtitle "..."] [--group <name>]`
+- `matctl course add <name> [--title "..."] [--subtitle "..."] [--group <name>] [--brand <name>]`
   — scaffold a new course from the template and register it in `projects.yml`.
   `--title` is recorded in the manifest (defaults to title-cased slug). `--group`
   requires the group to already exist; the project deploys under `<group>/<name>/`
-  and shares access scope with other group members. Regenerates `<group>/index.html`.
+  and shares access scope with other group members. `--brand` sets the visual
+  identity (default: `generic`). Regenerates `<group>/index.html`.
 - `matctl course remove <name> [--yes]` — remove the course directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
   Regenerates `<group>/index.html` for the removed entry's group (if any).
-- `matctl course modify <name> [--title "..."] [--group <name>]` — update a
-  course's title (write-through to `_quarto.yml:book.title`) and/or group. Pass
-  `--group ""` to remove grouping. At least one flag required. Regenerates
-  landing pages for all affected groups.
-- `matctl doc add <name> [--title "..."] [--group <name>]` — scaffold a new
+- `matctl course modify <name> [--title "..."] [--group <name>] [--brand <name>]` — update a
+  course's title (write-through to `_quarto.yml:book.title`), group, and/or brand.
+  Pass `--group ""` to remove grouping. `--brand` rewires per-project symlinks.
+  At least one flag required. Regenerates landing pages for all affected groups.
+- `matctl doc add <name> [--title "..."] [--group <name>] [--brand <name>]` — scaffold a new
   standalone document (single `index.qmd`, no slides) and register it in
-  `projects.yml`. `--title` and `--group` behave as for `course add`.
+  `projects.yml`. `--title`, `--group`, and `--brand` behave as for `course add`.
   Regenerates `<group>/index.html`.
 - `matctl doc remove <name> [--yes]` — remove the document directory and
   manifest entry (remote content must be cleaned up manually). Regenerates
   `<group>/index.html` for the removed entry's group (if any).
-- `matctl doc modify <name> [--title "..."] [--group <name>]` — update a
-  document's title (write-through to `index.qmd` front matter) and/or group.
+- `matctl doc modify <name> [--title "..."] [--group <name>] [--brand <name>]` — update a
+  document's title (write-through to `index.qmd` front matter), group, and/or brand.
   Behaves analogously to `course modify`. Regenerates landing pages for all
   affected groups.
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
@@ -90,7 +94,7 @@ material/ (content repo, consumed separately):
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.5.0"
+pipx install "git+https://github.com/pfroehlich/material-core@v0.6.0"
 matctl link
 quarto render <course>
 ```
@@ -123,4 +127,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`).

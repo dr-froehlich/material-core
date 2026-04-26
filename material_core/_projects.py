@@ -3,6 +3,13 @@
 Private module — shared by `matctl course add/remove`, `matctl doc add/remove`,
 and `matctl group add/remove/modify`. Uses `ruamel.yaml` so hand-edited
 comments and formatting in the manifest survive a programmatic rewrite.
+
+Brand defaults — two distinct defaults are deliberate:
+  - Scaffold default = "generic". Written into new entries by add_project().
+  - Resolution default = "thd". resolve_brand() returns "thd" when an entry
+    has no brand: key, preserving backwards-compat for pre-REQ-014 manifests.
+The two never conflict: by the time resolve_brand() runs on a fresh entry,
+brand: is already populated.
 """
 
 from __future__ import annotations
@@ -73,6 +80,7 @@ def add_project(
     type_: str,
     title: str,
     group: str | None = None,
+    brand: str = "generic",
 ) -> None:
     if name in project_names(doc):
         raise ValueError(f"{name} already in manifest")
@@ -82,7 +90,21 @@ def add_project(
     entry["title"] = title
     if group is not None:
         entry["group"] = group
+    entry["brand"] = brand
     doc["projects"].append(entry)
+
+
+def available_brands(pkg_root: Path) -> list[str]:
+    """Sorted list of brand names found under pkg_root/brands/."""
+    brands_dir = pkg_root / "brands"
+    if not brands_dir.is_dir():
+        return []
+    return sorted(p.name for p in brands_dir.iterdir() if p.is_dir())
+
+
+def resolve_brand(entry: CommentedMap) -> str:
+    """Return the brand for an entry; falls back to 'thd' for legacy entries without brand:."""
+    return entry.get("brand", "thd")
 
 
 def add_group(doc: CommentedMap, name: str, title: str) -> None:

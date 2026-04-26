@@ -9,9 +9,9 @@ book:
   subtitle: "{{COURSE_SUBTITLE}}"
   author:   "Prof. Dr.-Ing. Peter Fröhlich"
   date:     today
-  favicon:  THD-logo.png
+  {{FAVICON_LINE}}
   sidebar:
-    logo:   THD-logo.png
+    {{LOGO_LINE}}
   chapters:
     - index.qmd
     - chapters/01-introduction.qmd
@@ -21,6 +21,7 @@ format:
   html:
     theme:
       - cosmo
+      - ../brand.scss
       - ../shared/base.scss
     toc:                true
     toc-depth:          3

@@ -542,3 +542,93 @@ matctl token show <token>
 
 Prints the raw JSON stored in KV for one token: `course`, `label`, `issued`,
 `expires`.
+
+---
+
+## 9. Brands
+
+### 9.1 Scope
+
+Brand is **strictly visual**: logo, primary colour, favicon, footer text. Nothing
+else. Brand-neutral assets — fonts, SCSS structure, theorems, diagram defaults —
+live in `material_core/shared/` and are shared by all brands. No per-brand
+templates, no per-brand language settings, no per-brand deploy paths.
+
+### 9.2 Shipped brands
+
+| Brand | Default? | Logo | Primary colour | Use case |
+|---|---|---|---|---|
+| `generic` | **yes** (new scaffolds) | none | THD blue (`#1a4273`) | Non-THD documents; neutral, no organisational marking |
+| `thd` | implicit fallback for legacy entries without `brand:` | `THD-logo.png` | THD blue (`#1a4273`) | Lecture material under THD |
+| `pf` | opt-in | `logo_pf.svg` | warm-gold (`#d99d44`) | Peter Fröhlich's personal documents |
+
+### 9.3 Directory layout
+
+```
+material_core/
+  brands/
+    generic/
+      _brand.yml        palette + footer (no logo block)
+      brand.scss        SCSS variable overrides
+      assets/           empty (no logo, no favicon)
+    thd/
+      _brand.yml
+      brand.scss
+      assets/
+        THD-logo.png
+        favicon.png
+    pf/
+      _brand.yml
+      brand.scss
+      assets/
+        logo_pf.svg
+        favicon.svg
+  shared/               brand-neutral: base.scss, fonts, colors.tex, typst-show.typ
+```
+
+Each project directory gets three symlinks created at scaffold time:
+
+```
+<project>/_brand.yml    → material_core/brands/<brand>/_brand.yml
+<project>/brand.scss    → material_core/brands/<brand>/brand.scss
+<project>/brand-assets/ → material_core/brands/<brand>/assets/
+```
+
+### 9.4 Using brands
+
+Pass `--brand <name>` when scaffolding. Default is `generic`.
+
+```bash
+matctl course add my-course --lang de --brand thd   # THD lecture
+matctl doc add schutzkonzept --lang de               # generic (default)
+matctl doc add personal-doc --lang de --brand pf     # PF personal
+```
+
+Switch an existing project's brand:
+
+```bash
+matctl course modify my-course --brand pf
+```
+
+Rewire all per-project symlinks after a fresh checkout:
+
+```bash
+matctl link          # from the material/ repo root
+matctl link --force  # force-replace existing symlinks
+```
+
+### 9.5 Brand resolution rule
+
+- Manifest entries with `brand: <name>` use that brand.
+- Legacy entries **without** a `brand:` key resolve to `thd` (backwards-compat).
+- New scaffolds always write `brand:` explicitly (default: `generic`).
+
+### 9.6 How to add a new brand
+
+1. Create `material_core/brands/<name>/` with:
+   - `_brand.yml` — palette, optional logo block, typography
+   - `brand.scss` — `$brand-primary`, `$brand-secondary`, `$brand-accent`, `$brand-footer-text`
+   - `assets/` — logo file(s), favicon file(s) (empty if no logo)
+2. The new brand is picked up automatically by `available_brands()` at startup.
+   No code change needed.
+3. Bump the version in `pyproject.toml` (minor bump) and tag a release.

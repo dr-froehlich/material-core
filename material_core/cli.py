@@ -14,12 +14,14 @@ import click
 
 from ruamel.yaml import YAML
 
+from ._brand_resolve import brand_placeholders, link_project, relink_project, unlink_project
 from ._cloudflare import KVClient, load_credentials
 from ._landing import regenerate_group
 from ._projects import (
     PROJECTS_FILE,
     add_group,
     add_project,
+    available_brands,
     dependents_of_group,
     find_entry,
     group_exists,
@@ -27,6 +29,7 @@ from ._projects import (
     project_names,
     remove_group,
     remove_project,
+    resolve_brand,
     save_manifest,
 )
 from ._scaffold import (
@@ -37,7 +40,8 @@ from ._scaffold import (
 
 SITE_BASE = "https://material.professorfroehlich.de"
 
-LINK_TARGETS = ("_brand.yml", "shared")
+# _brand.yml at repo root is gone (REQ-014); per-project symlinks are used instead.
+LINK_TARGETS = ("shared",)
 
 _NAME_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 
@@ -65,6 +69,7 @@ def _scaffold_project(
     placeholders: dict[str, str],
     next_steps: list[str],
     group: str | None = None,
+    brand: str = "generic",
 ) -> None:
     """Validate, copy template, substitute placeholders, patch manifest, echo."""
     if not _NAME_RE.fullmatch(name):
@@ -91,9 +96,12 @@ def _scaffold_project(
     if dest.exists():
         raise click.ClickException(f"{dest} already exists")
 
+    pkg = _package_root()
     copy_template(template_subdir, dest)
-    substitute_placeholders(dest, placeholders)
-    add_project(manifest, name, project_type, title, group=group)
+    all_placeholders = {**placeholders, **brand_placeholders(brand)}
+    substitute_placeholders(dest, all_placeholders)
+    link_project(dest, brand, pkg)
+    add_project(manifest, name, project_type, title, group=group, brand=brand)
     save_manifest(manifest_path, manifest)
     _regenerate_affected_groups(manifest, group)
 
@@ -170,40 +178,101 @@ def main() -> None:
     help="Replace existing symlinks of the same name.",
 )
 def link(force: bool) -> None:
-    """Symlink _brand.yml and shared/ from material-core into the current directory."""
+    """Wire brand and shared/ symlinks for all projects (or just the current project dir)."""
     pkg = _package_root()
     cwd = Path.cwd()
-    for name in LINK_TARGETS:
-        src = pkg / name
-        dst = cwd / name
-        if not src.exists():
-            raise click.ClickException(f"package data missing: {src}")
-        if dst.is_symlink() or dst.exists():
-            if not force:
-                raise click.ClickException(
-                    f"{dst} already exists; pass --force to replace"
-                )
-            if dst.is_symlink() or dst.is_file():
-                dst.unlink()
-            else:
-                raise click.ClickException(
-                    f"refusing to replace non-symlink directory: {dst}"
-                )
-        dst.symlink_to(src)
-        click.echo(f"linked {name} -> {src}")
+
+    # Detect mode: root (has projects.yml) or project-dir (parent has projects.yml)
+    root_manifest = cwd / PROJECTS_FILE
+    parent_manifest = cwd.parent / PROJECTS_FILE
+
+    if root_manifest.exists():
+        # Root mode: fan out to every course/doc entry
+        manifest = load_manifest(root_manifest)
+        _ensure_shared_symlink(cwd, pkg, force)
+        for entry in manifest["projects"]:
+            if entry.get("type") not in ("course", "doc"):
+                continue
+            name = entry["name"]
+            brand = resolve_brand(entry)
+            project_dir = cwd / name
+            if not project_dir.is_dir():
+                click.echo(f"skipping {name} (directory not found)")
+                continue
+            link_project(project_dir, brand, pkg, force=force)
+            click.echo(f"linked {name} → brand:{brand}")
+        click.echo("linked shared/")
+    elif parent_manifest.exists():
+        # Project-dir mode: link just this project
+        manifest = load_manifest(parent_manifest)
+        name = cwd.name
+        entry = find_entry(manifest, name)
+        if entry is None or entry.get("type") not in ("course", "doc"):
+            raise click.ClickException(
+                f"{name} is not a course or doc in {parent_manifest}"
+            )
+        brand = resolve_brand(entry)
+        link_project(cwd, brand, pkg, force=force)
+        _ensure_shared_symlink(cwd.parent, pkg, force)
+        click.echo(f"linked {name} → brand:{brand}")
+        click.echo("linked shared/")
+    else:
+        raise click.ClickException(
+            f"no {PROJECTS_FILE} found in {cwd} or {cwd.parent}"
+        )
+
+
+def _ensure_shared_symlink(repo_root: Path, pkg: Path, force: bool) -> None:
+    src = pkg / "shared"
+    dst = repo_root / "shared"
+    if not src.exists():
+        raise click.ClickException(f"package data missing: {src}")
+    if dst.is_symlink() or dst.exists():
+        if not force:
+            return
+        if dst.is_symlink() or dst.is_file():
+            dst.unlink()
+        else:
+            raise click.ClickException(
+                f"refusing to replace non-symlink directory: {dst}"
+            )
+    dst.symlink_to(src)
 
 
 @main.command()
 def unlink() -> None:
-    """Remove the symlinks created by `matctl link`."""
+    """Remove brand and shared/ symlinks (root mode) or just this project's symlinks."""
     cwd = Path.cwd()
-    for name in LINK_TARGETS:
-        dst = cwd / name
-        if dst.is_symlink():
-            dst.unlink()
-            click.echo(f"removed {name}")
-        elif dst.exists():
-            click.echo(f"skipped {name} (not a symlink)")
+    root_manifest = cwd / PROJECTS_FILE
+    parent_manifest = cwd.parent / PROJECTS_FILE
+
+    if root_manifest.exists():
+        manifest = load_manifest(root_manifest)
+        for entry in manifest["projects"]:
+            if entry.get("type") not in ("course", "doc"):
+                continue
+            name = entry["name"]
+            project_dir = cwd / name
+            if project_dir.is_dir():
+                unlink_project(project_dir)
+                click.echo(f"unlinked {name}")
+        _remove_symlink(cwd / "shared")
+    elif parent_manifest.exists():
+        name = cwd.name
+        unlink_project(cwd)
+        click.echo(f"unlinked {name}")
+    else:
+        raise click.ClickException(
+            f"no {PROJECTS_FILE} found in {cwd} or {cwd.parent}"
+        )
+
+
+def _remove_symlink(dst: Path) -> None:
+    if dst.is_symlink():
+        dst.unlink()
+        click.echo(f"removed {dst.name}")
+    elif dst.exists():
+        click.echo(f"skipped {dst.name} (not a symlink)")
 
 
 @main.group()
@@ -234,8 +303,15 @@ def course() -> None:
     default=None,
     help="Optional URL-path group; deploys under <group>/<name>/.",
 )
+@click.option(
+    "--brand",
+    default="generic",
+    type=click.Choice(available_brands(_package_root())),
+    show_default=True,
+    help="Visual brand (logo, colours, footer).",
+)
 def course_add(
-    name: str, title: str | None, subtitle: str, lang: str, group: str | None
+    name: str, title: str | None, subtitle: str, lang: str, group: str | None, brand: str
 ) -> None:
     """Scaffold a new course and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
@@ -257,6 +333,7 @@ def course_add(
             "git push",
         ],
         group=group,
+        brand=brand,
     )
 
 
@@ -291,7 +368,14 @@ def doc() -> None:
     default=None,
     help="Optional URL-path group; deploys under <group>/<name>/.",
 )
-def doc_add(name: str, title: str | None, lang: str, group: str | None) -> None:
+@click.option(
+    "--brand",
+    default="generic",
+    type=click.Choice(available_brands(_package_root())),
+    show_default=True,
+    help="Visual brand (logo, colours, footer).",
+)
+def doc_add(name: str, title: str | None, lang: str, group: str | None, brand: str) -> None:
     """Scaffold a new standalone document and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
     _scaffold_project(
@@ -311,6 +395,7 @@ def doc_add(name: str, title: str | None, lang: str, group: str | None) -> None:
             "git push",
         ],
         group=group,
+        brand=brand,
     )
 
 
@@ -519,10 +604,11 @@ def _modify_project(
     name: str,
     title: object,
     group: object,
+    brand: object = _UNSET,
 ) -> None:
     """Shared implementation for `course modify` and `doc modify`."""
-    if title is _UNSET and group is _UNSET:
-        raise click.UsageError("specify --title and/or --group")
+    if title is _UNSET and group is _UNSET and brand is _UNSET:
+        raise click.UsageError("specify --title, --group, and/or --brand")
 
     cwd = Path.cwd()
     manifest_path = cwd / PROJECTS_FILE
@@ -572,6 +658,18 @@ def _modify_project(
             changes.append(f"group → {group!r}")
             group_changed = True
 
+    if brand is not _UNSET:
+        assert isinstance(brand, str)
+        pkg = _package_root()
+        valid = available_brands(pkg)
+        if brand not in valid:
+            raise click.ClickException(
+                f"unknown brand {brand!r}: choose one of {', '.join(valid)}"
+            )
+        entry["brand"] = brand
+        relink_project(cwd / name, brand, pkg)
+        changes.append(f"brand → {brand!r}")
+
     save_manifest(manifest_path, manifest)
 
     if group_changed:
@@ -603,9 +701,15 @@ def _modify_project(
     type=click.UNPROCESSED,
     help="New group (must exist); pass empty string to remove grouping.",
 )
-def course_modify(name: str, title: object, group: object) -> None:
-    """Modify a course's title and/or group."""
-    _modify_project("course", name, title, group)
+@click.option(
+    "--brand",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New visual brand; rewires per-project symlinks.",
+)
+def course_modify(name: str, title: object, group: object, brand: object) -> None:
+    """Modify a course's title, group, and/or brand."""
+    _modify_project("course", name, title, group, brand)
 
 
 @doc.command("modify")
@@ -622,9 +726,15 @@ def course_modify(name: str, title: object, group: object) -> None:
     type=click.UNPROCESSED,
     help="New group (must exist); pass empty string to remove grouping.",
 )
-def doc_modify(name: str, title: object, group: object) -> None:
-    """Modify a document's title and/or group."""
-    _modify_project("doc", name, title, group)
+@click.option(
+    "--brand",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="New visual brand; rewires per-project symlinks.",
+)
+def doc_modify(name: str, title: object, group: object, brand: object) -> None:
+    """Modify a document's title, group, and/or brand."""
+    _modify_project("doc", name, title, group, brand)
 
 
 @main.group("group")
