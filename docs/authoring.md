@@ -64,6 +64,32 @@ See @sec-bjt for details.
 Section cross-refs require `crossref` to be configured (already on in the
 template via `number-sections: true`).
 
+### Headings in book chapters
+
+In a Quarto Book chapter, the YAML `title:` becomes the H1 heading automatically.
+**Do not add a `# Heading` at the top of the file body** — doing so produces two H1s
+in the rendered HTML, and the `#sec-…` ID attached to the explicit heading breaks
+when that heading is removed. Start content with `## Section` (H2).
+
+### Preface / unnumbered index page
+
+`index.qmd` is the book's welcome or preface page. The scaffold applies
+`{.unnumbered}` to its chapter heading so it does not consume a chapter number,
+and `chapters/01-introduction.qmd` renders as **Chapter 1**:
+
+```markdown
+# Welcome {.unnumbered}
+```
+
+To make `index.qmd` numbered Chapter 1 instead, remove `{.unnumbered}`:
+
+```markdown
+# Welcome
+```
+
+When you do this, rename the chapter files (`01-…` → `02-…`) to keep file
+prefixes in sync with rendered chapter numbers.
+
 ### Callouts
 
 Five types — `note`, `tip`, `warning`, `important`, `caution`:
@@ -130,6 +156,14 @@ kind of object you are linking to.
 | `[@key]` | Bibliography | Entry in `.bib` |
 
 Use `[-@fig-foo]` to suppress the prefix word ("Fig.") in the link text.
+
+**Quarto Book limitation:** `@sec-…` references work only for section headings
+*within* the current file. Cross-file section references are not supported by
+Quarto Book. To link from one chapter to another, use a plain Markdown link:
+
+```markdown
+See the [Introduction](chapters/01-introduction.qmd) for background.
+```
 
 ---
 

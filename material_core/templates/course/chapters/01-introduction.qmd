@@ -3,6 +3,10 @@ title: "Introduction"
 # draft: true    # uncomment to hide this chapter from the published site
 ---
 
+<!-- The YAML title: above becomes the H1 chapter heading automatically.
+     Do NOT add a "# Heading" here — that produces two H1s in the rendered HTML.
+     Start chapter content with ## (H2) sections. -->
+
 ## Motivation
 
 Full prose explanation for the written script. This content appears here

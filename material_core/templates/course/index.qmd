@@ -1,6 +1,9 @@
----
-title: "Welcome"
----
+# Welcome {.unnumbered}
+
+<!-- {.unnumbered} prevents index.qmd from consuming a chapter number, so
+     chapters/01-introduction.qmd renders as "Chapter 1". To make index.qmd
+     numbered Chapter 1 instead, remove {.unnumbered} and rename chapter files
+     (01-… → 02-…) to stay in sync with the rendered numbers. -->
 
 Brief course description — what this course is about and who it is for.
 
