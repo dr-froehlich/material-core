@@ -64,6 +64,20 @@ def relink_project(project_dir: Path, new_brand: str, pkg_root: Path) -> None:
     link_project(project_dir, new_brand, pkg_root, force=True)
 
 
+def brand_quarto_book_keys(brand: str) -> dict[str, str]:
+    """Return {'favicon': path, 'logo': path} for non-generic brands; empty dict for generic."""
+    if brand == "generic":
+        return {}
+    logo_files = {"thd": "THD-logo.png", "pf": "logo_pf.svg"}
+    favicon_files = {"thd": "favicon.png", "pf": "favicon.svg"}
+    logo = logo_files.get(brand, f"logo_{brand}.png")
+    favicon = favicon_files.get(brand, f"favicon_{brand}.png")
+    return {
+        "favicon": f"brand-assets/{favicon}",
+        "logo": f"brand-assets/{logo}",
+    }
+
+
 def brand_placeholders(brand: str) -> dict[str, str]:
     """Return the YAML placeholder substitutions for a given brand."""
     if brand == "generic":
