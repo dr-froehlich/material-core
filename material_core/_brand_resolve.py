@@ -35,7 +35,8 @@ def link_project(
     }
     for link_name, src in targets.items():
         dst = project_dir / link_name
-        if dst.is_symlink() or dst.exists():
+        broken = dst.is_symlink() and not dst.exists()
+        if not broken and (dst.is_symlink() or dst.exists()):
             if not force:
                 continue
             if dst.is_symlink() or dst.is_file():
@@ -43,6 +44,8 @@ def link_project(
             else:
                 import shutil
                 shutil.rmtree(dst)
+        elif broken:
+            dst.unlink()
         dst.symlink_to(src)
 
 
