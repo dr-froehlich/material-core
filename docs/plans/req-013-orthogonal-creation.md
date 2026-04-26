@@ -355,10 +355,10 @@ All edits in `material_core/templates/`. Deliberate, reviewable in
 isolation; no behaviour change yet (cli.py still points at `course/`
 and `doc/`).
 
-- [ ] **1.1** Create `_base/` with `orange-book/` (copied from
+- [x] **1.1** Create `_base/` with `orange-book/` (copied from
       `course/orange-book/` — the doc copy is byte-identical;
       verify with `diff -r`) and `assets/.gitkeep`.
-- [ ] **1.2** Create `structure/chapters/` containing
+- [x] **1.2** Create `structure/chapters/` containing
       `chapters/01-introduction.qmd`, `_shared/_exercise-example.qmd`,
       `index.qmd` (the REQ-012 unnumbered preface), and a
       `_quarto.fragment.yml` carrying only the keys that differ
@@ -379,7 +379,7 @@ and `doc/`).
           - index.qmd
           - chapters/01-introduction.qmd
       ```
-- [ ] **1.3** Create `structure/single/` containing `index.qmd` (from
+- [x] **1.3** Create `structure/single/` containing `index.qmd` (from
       today's `doc/index.qmd`) and a `_quarto.fragment.yml`:
       ```yaml
       project:
@@ -388,22 +388,22 @@ and `doc/`).
       ```
       Plus the front-matter title interpolation that today's `doc`
       template carries.
-- [ ] **1.4** Create `slides/` overlay containing
+- [x] **1.4** Create `slides/` overlay containing
       `slides/01-introduction.qmd` and `slides/_quarto.yml`, copied
       verbatim from `course/slides/`.
-- [ ] **1.5** Create `_quarto.common.fragment.yml` with everything
+- [x] **1.5** Create `_quarto.common.fragment.yml` with everything
       both structures share: top-level `lang: {{LANG}}`,
       `format.html.{theme,toc,toc-depth,number-sections,…}`,
       `format.orange-book-typst.{output-file: {{PROJECT_NAME}}.pdf,
       number-sections, toc, toc-depth, template-partials}`. Only
       include keys that are identical today between course's and
       doc's `_quarto.yml`.
-- [ ] **1.6** Rename placeholder tokens to be project-type-agnostic:
+- [x] **1.6** Rename placeholder tokens to be project-type-agnostic:
       `{{COURSE_NAME}}` / `{{DOC_NAME}}` → `{{PROJECT_NAME}}`,
       `{{COURSE_TITLE}}` / `{{DOC_TITLE}}` → `{{PROJECT_TITLE}}`,
       `{{COURSE_SUBTITLE}}` → `{{PROJECT_SUBTITLE}}`. `{{LANG}}`
       stays.
-- [ ] **1.7** Delete the old `material_core/templates/course/` and
+- [x] **1.7** Delete the old `material_core/templates/course/` and
       `material_core/templates/doc/` directories — D2 removes the
       verbs that referenced them, so leaving them behind is dead
       weight. Verify with `grep -r "templates/course\|templates/doc"
@@ -412,17 +412,17 @@ and `doc/`).
 
 ## Phase 2 — Template composer (`material_core/_compose.py`, new module)
 
-- [ ] **2.1** Module skeleton: `compose(dest: Path, *, structure:
+- [x] **2.1** Module skeleton: `compose(dest: Path, *, structure:
       str, slides: bool, brand: str, placeholders: dict[str, str]) ->
       None`. Pure orchestration; no `click` dependency.
-- [ ] **2.2** Implement `_deep_merge(a, b) -> CommentedMap` over
+- [x] **2.2** Implement `_deep_merge(a, b) -> CommentedMap` over
       `ruamel.yaml` types: scalar/dict/list rules per D4. Lists from
       `b` extend lists from `a` (book.chapters), scalars from `b`
       win, dicts merge recursively. Behaviour is a pure function;
       add docstring examples.
-- [ ] **2.3** Implement `_load_fragment(path: Path) -> CommentedMap`
+- [x] **2.3** Implement `_load_fragment(path: Path) -> CommentedMap`
       using the same ruamel config as `_projects.py`.
-- [ ] **2.4** Implement `compose`:
+- [x] **2.4** Implement `compose`:
       1. `copy_template("_base", dest)` (reuse `_scaffold.copy_template`).
       2. Overlay-copy `structure/<structure>/` into `dest/`,
          skipping `_quarto.fragment.yml`.
@@ -439,11 +439,11 @@ and `doc/`).
       6. Call `link_project(dest, brand, pkg_root)` to wire the three
          per-project brand symlinks (`_brand.yml`, `brand.scss`,
          `brand-assets/`).
-- [ ] **2.5** Add a `_overlay_copy(src: Path, dest: Path)` helper —
+- [x] **2.5** Add a `_overlay_copy(src: Path, dest: Path)` helper —
       `copytree` with `dirs_exist_ok=True` and a single-file skip
       list. `shutil.copytree(..., ignore=shutil.ignore_patterns("_quarto.fragment.yml"))`
       handles the skip cleanly.
-- [ ] **2.6** Defensive checks: unknown `structure` value, missing
+- [x] **2.6** Defensive checks: unknown `structure` value, missing
       fragment file, unknown brand id (`brand not in
       available_brands(_package_root())` — uses
       `material_core._projects.available_brands`, not a separate
@@ -452,16 +452,16 @@ and `doc/`).
 
 ## Phase 3 — Manifest schema (`material_core/_projects.py`)
 
-- [ ] **3.1** Extend `add_project` signature to accept `structure: str,
+- [x] **3.1** Extend `add_project` signature to accept `structure: str,
       slides: bool, brand: str, lang: str` and write them into the
       entry. Keep field write order stable (`name, type, title, group,
       structure, slides, brand, lang`) for readable diffs.
-- [ ] **3.2** Add `_normalise_legacy(doc: CommentedMap) -> bool` —
+- [x] **3.2** Add `_normalise_legacy(doc: CommentedMap) -> bool` —
       walk `doc["projects"]`, rewrite `type: course` and `type: doc`
       entries per D10. Return `True` if any entry was rewritten so
       callers can decide whether to persist. Default `lang: de` when
       absent.
-- [ ] **3.3** Call `_normalise_legacy` from `load_manifest` so every
+- [x] **3.3** Call `_normalise_legacy` from `load_manifest` so every
       consumer sees the new shape. The function rewrites the
       `CommentedMap` in place; persistence happens whenever the next
       `save_manifest` runs (D10). Add a one-line `click.echo` (via a
@@ -470,18 +470,18 @@ and `doc/`).
       **prefer silent**: a noisy migration on every read is worse than
       a quiet one-time write). The schema is forward-readable, so the
       silent path is safe.
-- [ ] **3.4** Add `update_axes(entry: CommentedMap, *, structure:
+- [x] **3.4** Add `update_axes(entry: CommentedMap, *, structure:
       str | None, slides: bool | None, brand: str | None, lang: str |
       None) -> list[str]` returning a list of human-readable change
       descriptions for `click.echo`. Used by `project modify`.
 
 ## Phase 4 — CLI: `project` verb (`material_core/cli.py`)
 
-- [ ] **4.1** Add a new `@main.group("project")` with `add`, `remove`,
+- [x] **4.1** Add a new `@main.group("project")` with `add`, `remove`,
       `modify` subcommands. Place it above the deprecated `course`
       and `doc` groups in source order so it reads as the primary
       surface.
-- [ ] **4.2** `project add` flag surface:
+- [x] **4.2** `project add` flag surface:
       ```
       --structure [chapters|single]   required
       --slides / --no-slides          required (no default — force user choice)
@@ -493,14 +493,14 @@ and `doc/`).
       ```
       Refuse the run if `--subtitle` is passed with `--structure single`
       (single-file index.qmd has no subtitle slot).
-- [ ] **4.3** Refactor `_scaffold_project` to drive the new composer:
+- [x] **4.3** Refactor `_scaffold_project` to drive the new composer:
       thread `structure`, `slides`, `brand`, `lang` through to
       `compose()` and `add_project()`. The dest-existence and group-
       existence checks stay where they are.
-- [ ] **4.4** `project remove` — body is essentially today's
+- [x] **4.4** `project remove` — body is essentially today's
       `_remove_project`, no changes needed beyond renaming the click
       command.
-- [ ] **4.5** `project modify` flag surface adds `--brand`, `--slides
+- [x] **4.5** `project modify` flag surface adds `--brand`, `--slides
       / --no-slides`, `--lang`, `--structure` (the last only to fail
       loudly per D7). Implement the transition matrix in D7.
 
@@ -515,7 +515,7 @@ and `doc/`).
 
       For `--lang`: edit the top-level `lang:` line in `_quarto.yml`
       (chapters) or front matter (single).
-- [ ] **4.6** Centralise affected-group regeneration: every mutating
+- [x] **4.6** Centralise affected-group regeneration: every mutating
       handler ends with `_regenerate_affected_groups(...)` exactly
       like today (REQ-009 D2). Brand changes affect *no* group's
       landing page (D9 — landing pages are brand-neutral) but lang
@@ -525,17 +525,17 @@ and `doc/`).
 
 ## Phase 5 — Remove `course` and `doc` click groups
 
-- [ ] **5.1** Delete the `@main.group()` definitions for `course` and
+- [x] **5.1** Delete the `@main.group()` definitions for `course` and
       `doc` and all their subcommands (`course_add`, `course_remove`,
       `course_modify`, `doc_add`, `doc_remove`, `doc_modify`) from
       `cli.py`.
-- [ ] **5.2** Remove now-unused imports (`title_case_from_slug` may
+- [x] **5.2** Remove now-unused imports (`title_case_from_slug` may
       stay — `project add` still needs it).
-- [ ] **5.3** Spot-check: `grep -nE "\\bcourse\\b|\\bdoc\\b" cli.py`
+- [x] **5.3** Spot-check: `grep -nE "\\bcourse\\b|\\bdoc\\b" cli.py`
       should only show occurrences inside docstrings, the
       deprecation note in the changelog reference, or the legacy-
       manifest migration code in `_projects.py`.
-- [ ] **5.4** Leave `_scaffold_project`, `_remove_project`,
+- [x] **5.4** Leave `_scaffold_project`, `_remove_project`,
       `_modify_project`, `_rewrite_title` in place — `project add/
       remove/modify` reuse them. Trim parameters that only existed
       to distinguish course vs doc (e.g. the `label` parameter
@@ -548,18 +548,18 @@ The current build matrix enumerates entries with `type in (course,
 doc)`. After D10's migration runs once and `projects.yml` is
 re-saved, every former course/doc becomes `type: project`.
 
-- [ ] **6.1** Update the matrix-extraction `yq` expression in
+- [x] **6.1** Update the matrix-extraction `yq` expression in
       `material/.github/workflows/publish.yml`:
       ```
       yq '.projects[] | select(.type == "project") | .name' projects.yml
       ```
       (or for the transition window: `select(.type == "project" or
       .type == "course" or .type == "doc")`).
-- [ ] **6.2** Verify deploy paths (`<group>/<name>/` vs `<name>/`)
+- [x] **6.2** Verify deploy paths (`<group>/<name>/` vs `<name>/`)
       are unchanged — the path derivation already keys on the
       `group:` field, not on `type`. Confirm by inspecting the build
       step source.
-- [ ] **6.3** REQ-009 landing job: `select(.type == "group")`
+- [x] **6.3** REQ-009 landing job: `select(.type == "group")`
       already correct, no change.
 
 ## Phase 7 — Manual acceptance: eight scaffolds × `quarto render`
@@ -568,43 +568,43 @@ Run each in a throwaway checkout (`projects.yml` containing only an
 empty `projects: []`, `matctl link` already run, REQ-014's brands
 registered).
 
-- [ ] **7.1** `--chapters --slides     --brand thd     --lang de` →
+- [x] **7.1** `--chapters --slides     --brand thd     --lang de` →
       identical to today's `course add` output. `quarto render`
       succeeds. THD branding visible.
-- [ ] **7.2** `--chapters --slides     --brand generic --lang de` →
+- [x] **7.2** `--chapters --slides     --brand generic --lang de` →
       same structure, no THD logo, generic favicon, generic primary
       colour.
-- [ ] **7.3** `--chapters --no-slides  --brand thd     --lang de` →
+- [x] **7.3** `--chapters --no-slides  --brand thd     --lang de` →
       no `slides/` directory present; `quarto render` succeeds; book
       sidebar lacks the slides cross-link (none was scaffolded
       anyway).
-- [ ] **7.4** `--chapters --no-slides  --brand generic --lang de` →
+- [x] **7.4** `--chapters --no-slides  --brand generic --lang de` →
       **the schutzkonzept combination.** Verify it renders a
       multi-chapter book with no THD assets.
-- [ ] **7.5** `--single   --slides     --brand thd     --lang de` →
+- [x] **7.5** `--single   --slides     --brand thd     --lang de` →
       single `index.qmd` plus sibling `slides/` rendered as a
       separate Quarto project. Both outputs land under `_output/`.
-- [ ] **7.6** `--single   --slides     --brand generic --lang de` →
+- [x] **7.6** `--single   --slides     --brand generic --lang de` →
       same as 7.5 with neutral brand.
-- [ ] **7.7** `--single   --no-slides  --brand thd     --lang de` →
+- [x] **7.7** `--single   --no-slides  --brand thd     --lang de` →
       identical to today's `doc add` output.
-- [ ] **7.8** `--single   --no-slides  --brand generic --lang en` →
+- [x] **7.8** `--single   --no-slides  --brand generic --lang en` →
       single English doc, neutral brand. Verify English crossref
       labels.
-- [ ] **7.9** Inspect the resulting `projects.yml`: each of the
+- [x] **7.9** Inspect the resulting `projects.yml`: each of the
       eight entries carries `structure`, `slides`, `brand`, `lang`
       with the values used.
-- [ ] **7.10** `matctl project modify <name> --brand thd` on the
+- [x] **7.10** `matctl project modify <name> --brand thd` on the
       generic-branded entry from 7.4: manifest updates,
       `_quarto.yml` favicon/sidebar.logo lines update, `matctl link`
       re-resolves, `quarto render` shows THD branding.
-- [ ] **7.11** `matctl project modify <name> --slides` on a
+- [x] **7.11** `matctl project modify <name> --slides` on a
       `--no-slides` entry: `slides/` overlay is added, manifest
       reflects `slides: true`, `quarto render` builds both outputs.
-- [ ] **7.12** `matctl project modify <name> --structure single`
+- [x] **7.12** `matctl project modify <name> --structure single`
       on a chapters entry: rejected with the documented error
       message; on-disk state untouched.
-- [ ] **7.13** Legacy migration smoke: take a copy of the *current*
+- [x] **7.13** Legacy migration smoke: take a copy of the *current*
       `material/projects.yml` (with `type: course` / `type: doc`
       entries), run any `matctl project modify` no-op on one entry,
       then `git diff projects.yml` — every former course/doc entry
@@ -613,20 +613,20 @@ registered).
 
 ## Phase 8 — Documentation
 
-- [ ] **8.1** `docs/authoring.md` — add a section "Choosing a project
+- [x] **8.1** `docs/authoring.md` — add a section "Choosing a project
       shape" with the 2×2×2 decision matrix and a one-line
       recommendation per cell. Cross-reference `--brand` to REQ-014's
       brand list.
-- [ ] **8.2** `docs/administration.md` — under the matctl reference,
+- [x] **8.2** `docs/administration.md` — under the matctl reference,
       add `project add/remove/modify` documentation. Mark
       `course add` / `doc add` as deprecated shims with their frozen
       axis values.
-- [ ] **8.3** `CLAUDE.md` — replace the `course add` and `doc add`
+- [x] **8.3** `CLAUDE.md` — replace the `course add` and `doc add`
       bullet lists with a single `project add` description that
       lists the orthogonal flags and shows the eight combinations
       in a compact table. Note the deprecation of the old verbs.
       Update "Current status" to add REQ-013 DONE on release.
-- [ ] **8.4** Changelog entry for v0.7.0 covering: the new `project`
+- [x] **8.4** Changelog entry for v0.7.0 covering: the new `project`
       verb, the manifest schema bump (and that it auto-migrates),
       the removal of `course`/`doc` commands (REQ-014 v0.6.0 added
       `--brand` to them; REQ-013 v0.7.0 removes the commands outright),
@@ -636,18 +636,18 @@ registered).
 
 Note: REQ-014 already shipped as `v0.6.0`. REQ-013 is `v0.7.0`.
 
-- [ ] **9.1** `material-core`: bump `pyproject.toml` to `0.7.0`.
-- [ ] **9.2** Tag `v0.7.0`, push.
-- [ ] **9.3** `material/.github/workflows/publish.yml`: update the
+- [x] **9.1** `material-core`: bump `pyproject.toml` to `0.7.0`.
+- [x] **9.2** Tag `v0.7.0`, push.
+- [x] **9.3** `material/.github/workflows/publish.yml`: update the
       pinned `material-core` version to `v0.7.0`.
-- [ ] **9.4** First `matctl project modify` no-op on any existing
+- [x] **9.4** First `matctl project modify` no-op on any existing
       entry in `material/` to trigger the manifest re-save (D10) —
       commit the resulting `projects.yml` schema migration in one
       tidy commit.
-- [ ] **9.5** Tick all REQ-013 acceptance criteria, set Status DONE,
+- [x] **9.5** Tick all REQ-013 acceptance criteria, set Status DONE,
       Completed date, Verified by ("manual acceptance run 2026-…
       eight combinations + render").
-- [ ] **9.6** Update `REQUIREMENTS_INDEX.md`.
+- [x] **9.6** Update `REQUIREMENTS_INDEX.md`.
 
 ---
 
