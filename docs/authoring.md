@@ -33,7 +33,15 @@ Useful additional fields you may want to enable later:
 | `toc: false` | Disables table of contents for this file |
 | `number-sections: false` | Disables section numbering for this file |
 | `bibliography: refs.bib` | Per-chapter bibliography override |
-| `lang: de` / `lang: en` | Language; affects hyphenation, captions |
+| `lang: de` / `lang: en` | Language; affects hyphenation, captions, and crossref labels |
+
+**`lang:` and crossref labels** — setting `lang: de` in `_quarto.yml` causes
+Quarto/Pandoc to render section and chapter cross-references in German:
+`@sec-foo` → *Abschnitt 1.2*, `@fig-foo` → *Abbildung 3*. Without it (or with
+`lang: en`) the labels are English (*Section 1.2*, *Figure 3*). The scaffolder
+sets this at project level via `matctl course add --lang de|en` /
+`matctl doc add --lang de|en` — choose the language at creation time;
+`book.language` (a book-theme customisation key) is **not** the right field.
 
 Project-wide defaults live in `<course>/_quarto.yml`; per-file front matter
 overrides them.

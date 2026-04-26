@@ -1,3 +1,5 @@
+lang: {{LANG}}
+
 project:
   type: default
   output-dir: _output

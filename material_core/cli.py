@@ -224,12 +224,18 @@ def course() -> None:
     help="Optional subtitle (default: empty).",
 )
 @click.option(
+    "--lang",
+    required=True,
+    type=click.Choice(["de", "en"]),
+    help="Document language; sets crossref label language (e.g. 'Kapitel' vs 'Chapter').",
+)
+@click.option(
     "--group",
     default=None,
     help="Optional URL-path group; deploys under <group>/<name>/.",
 )
 def course_add(
-    name: str, title: str | None, subtitle: str, group: str | None
+    name: str, title: str | None, subtitle: str, lang: str, group: str | None
 ) -> None:
     """Scaffold a new course and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
@@ -242,6 +248,7 @@ def course_add(
             "{{COURSE_NAME}}": name,
             "{{COURSE_TITLE}}": resolved_title,
             "{{COURSE_SUBTITLE}}": subtitle,
+            "{{LANG}}": lang,
         },
         [
             f"quarto preview {name}",
@@ -274,11 +281,17 @@ def doc() -> None:
     help="Human-readable title (default: <name> title-cased).",
 )
 @click.option(
+    "--lang",
+    required=True,
+    type=click.Choice(["de", "en"]),
+    help="Document language; sets crossref label language (e.g. 'Kapitel' vs 'Chapter').",
+)
+@click.option(
     "--group",
     default=None,
     help="Optional URL-path group; deploys under <group>/<name>/.",
 )
-def doc_add(name: str, title: str | None, group: str | None) -> None:
+def doc_add(name: str, title: str | None, lang: str, group: str | None) -> None:
     """Scaffold a new standalone document and register it in projects.yml."""
     resolved_title = title or title_case_from_slug(name)
     _scaffold_project(
@@ -289,6 +302,7 @@ def doc_add(name: str, title: str | None, group: str | None) -> None:
         {
             "{{DOC_NAME}}": name,
             "{{DOC_TITLE}}": resolved_title,
+            "{{LANG}}": lang,
         },
         [
             f"quarto preview {name}",
