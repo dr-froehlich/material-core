@@ -28,6 +28,8 @@ typography:
           weight: 700
         - path: shared/assets/fonts/Daniel-Black.otf
           weight: 900
-  base-size:      1rem
-  line-height:    1.6
-  monospace-size: 0.85em
+  base:
+    size:        1rem
+    line-height: 1.6
+  monospace:
+    size:        0.85em
