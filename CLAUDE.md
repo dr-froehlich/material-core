@@ -45,11 +45,13 @@ material/ (content repo, consumed separately):
 
 ## matctl CLI
 
-- `matctl link [--force]` — at the repo root: fan out per-project brand symlinks
-  (`_brand.yml`, `brand.scss`, `brand-assets/`) for every course/doc entry, plus
-  the root-level `shared/` symlink. Inside a project directory: wire just that
-  project. With `pipx install --editable`, symlinks resolve into the live source
-  tree, so SCSS edits are immediately visible to `quarto preview`.
+- `matctl link [--force]` — at the repo root: fan out per-project symlinks
+  (`_brand.yml`, `brand.scss`, `brand-assets/`, `shared/`) for every course/doc
+  entry, plus the root-level `shared/` symlink. Inside a project directory: wire
+  just that project. Broken symlinks (absolute paths committed by mistake) are
+  always replaced even without `--force`. With `pipx install --editable`,
+  symlinks resolve into the live source tree, so SCSS edits are immediately
+  visible to `quarto preview`.
 - `matctl unlink` — remove the per-project brand symlinks (and `shared/` at root).
 - `matctl group add <name> --title "..."` — register a new group in
   `projects.yml`. No directory created. Groups must exist before any course or
