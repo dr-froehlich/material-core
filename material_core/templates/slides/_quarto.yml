@@ -9,7 +9,7 @@ format:
       - ../../brand.scss
       - ../../shared/base.scss
     {{LOGO_LINE}}
-    footer:         "{{COURSE_TITLE}} — Prof. Dr.-Ing. Peter Fröhlich"
+    footer:         "{{PROJECT_TITLE}} — Prof. Dr.-Ing. Peter Fröhlich"
     slide-number:   true
     show-slide-number: speaker
     transition:     fade

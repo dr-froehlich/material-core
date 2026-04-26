@@ -1,0 +1,19 @@
+project:
+  type: book
+  output-dir: _output/book
+
+book:
+  title:    "{{PROJECT_TITLE}}"
+  subtitle: "{{PROJECT_SUBTITLE}}"
+  author:   "Prof. Dr.-Ing. Peter Fröhlich"
+  date:     today
+  chapters:
+    - index.qmd
+    - chapters/01-introduction.qmd
+    # - chapters/02-next-chapter.qmd
+
+format:
+  html:
+    code-fold:          true
+    citations-hover:    true
+    footnotes-hover:    true

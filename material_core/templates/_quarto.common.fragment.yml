@@ -1,0 +1,19 @@
+lang: "{{LANG}}"
+
+format:
+  html:
+    theme:
+      - cosmo
+      - ../brand.scss
+      - ../shared/base.scss
+    toc:                true
+    toc-depth:          3
+    number-sections:    true
+    smooth-scroll:      true
+  orange-book-typst:
+    output-file:      "{{PROJECT_NAME}}.pdf"
+    number-sections:  true
+    toc:              true
+    toc-depth:        2
+    template-partials:
+      - ../shared/typst-show.typ

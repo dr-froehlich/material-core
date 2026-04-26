@@ -1,6 +1,6 @@
 ---
 title: "Introduction"
-subtitle: "{{COURSE_TITLE}}"
+subtitle: "{{PROJECT_TITLE}}"
 date: today
 ---
 

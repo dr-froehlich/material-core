@@ -1,5 +1,5 @@
 ---
-title:  "{{DOC_TITLE}}"
+title:  "{{PROJECT_TITLE}}"
 author: "Prof. Dr.-Ing. Peter Fröhlich"
 date:   today
 ---
