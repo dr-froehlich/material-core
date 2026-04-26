@@ -28,8 +28,11 @@ material-core/
     shared/                    — brand-neutral: base.scss, fonts, typst-show.typ, colors.tex
     cloudflare/worker.js       — token-validating access Worker
     scripts/.env               — Cloudflare credentials (gitignored; read by matctl token)
-    templates/course/          — course scaffolding template
-    templates/doc/             — standalone document scaffolding template
+    _compose.py                — template fragment composer (new in REQ-013)
+    templates/_base/           — shared base overlay (orange-book/, assets/)
+    templates/structure/       — per-structure overlays (chapters/, single/)
+    templates/slides/          — optional slides overlay
+    templates/_quarto.common.fragment.yml — shared Quarto keys
   docs/
     administration.md          — ops reference (arch, deploy, tokens, brands §9)
     authoring.md               — Quarto authoring reference for content authors
@@ -57,30 +60,37 @@ material/ (content repo, consumed separately):
   already empty by precondition.
 - `matctl group modify <name> --title "..."` — update the group's title in the
   manifest and regenerate `<group>/index.html`.
-- `matctl course add <name> [--title "..."] [--subtitle "..."] [--group <name>] [--brand <name>]`
-  — scaffold a new course from the template and register it in `projects.yml`.
-  `--title` is recorded in the manifest (defaults to title-cased slug). `--group`
-  requires the group to already exist; the project deploys under `<group>/<name>/`
-  and shares access scope with other group members. `--brand` sets the visual
-  identity (default: `generic`). Regenerates `<group>/index.html`.
-- `matctl course remove <name> [--yes]` — remove the course directory and
+- `matctl project add <name> --structure [chapters|single] --slides|--no-slides --brand <name> --lang [de|en] [--title "..."] [--subtitle "..."] [--group <name>]`
+  — scaffold a new project from orthogonal template fragments and register it in
+  `projects.yml`. The three orthogonal axes produce all eight combinations:
+  - `--structure chapters` → multi-chapter Quarto book (replaces `course add`)
+  - `--structure single` → single-file document (replaces `doc add`)
+  - `--slides/--no-slides` → include a `slides/` subdirectory with RevealJS deck
+  - `--brand` → visual identity (generic, thd, pf); required
+  - `--lang de|en` → crossref label language; required
+  `--subtitle` only applies to `--structure chapters`. `--group` requires the group
+  to exist; deploys under `<group>/<name>/`. Regenerates `<group>/index.html`.
+- `matctl project remove <name> [--yes]` — remove the project directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
   Regenerates `<group>/index.html` for the removed entry's group (if any).
-- `matctl course modify <name> [--title "..."] [--group <name>] [--brand <name>]` — update a
-  course's title (write-through to `_quarto.yml:book.title`), group, and/or brand.
-  Pass `--group ""` to remove grouping. `--brand` rewires per-project symlinks.
-  At least one flag required. Regenerates landing pages for all affected groups.
-- `matctl doc add <name> [--title "..."] [--group <name>] [--brand <name>]` — scaffold a new
-  standalone document (single `index.qmd`, no slides) and register it in
-  `projects.yml`. `--title`, `--group`, and `--brand` behave as for `course add`.
-  Regenerates `<group>/index.html`.
-- `matctl doc remove <name> [--yes]` — remove the document directory and
-  manifest entry (remote content must be cleaned up manually). Regenerates
-  `<group>/index.html` for the removed entry's group (if any).
-- `matctl doc modify <name> [--title "..."] [--group <name>] [--brand <name>]` — update a
-  document's title (write-through to `index.qmd` front matter), group, and/or brand.
-  Behaves analogously to `course modify`. Regenerates landing pages for all
-  affected groups.
+- `matctl project modify <name> [--title "..."] [--group <name>] [--brand <name>] [--slides|--no-slides] [--lang de|en]`
+  — update a project's metadata. `--title` is written through to `_quarto.yml:book.title`
+  (chapters) or `index.qmd` front matter (single). `--brand` rewires per-project
+  symlinks and updates `_quarto.yml` favicon/sidebar.logo in place. `--slides`
+  (false→true) adds the slides overlay; `--no-slides` rejected when `slides/` has content.
+  `--structure` is always rejected — create a new project and move content by hand.
+  Regenerates landing pages for all affected groups.
+
+  v0.6.0 → v0.7.0 migration:
+  ```
+  matctl course add  → matctl project add --structure chapters --slides     --brand thd --lang de
+  matctl doc    add  → matctl project add --structure single   --no-slides  --brand thd --lang de
+  matctl course/doc remove → matctl project remove
+  matctl course/doc modify → matctl project modify
+  ```
+  Legacy `type: course` / `type: doc` entries in `projects.yml` are migrated to
+  `type: project` + `structure` + `slides` + `brand` + `lang` automatically on
+  the next `project modify` or `project add` that triggers a manifest save.
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
   it to Cloudflare KV, and print the ready-to-paste iLearn URL.
 - `matctl token list [<course>]` — table of all tokens (or filtered to one
@@ -94,7 +104,7 @@ material/ (content repo, consumed separately):
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.6.0"
+pipx install "git+https://github.com/pfroehlich/material-core@v0.7.0"
 matctl link
 quarto render <course>
 ```
@@ -127,4 +137,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0).
