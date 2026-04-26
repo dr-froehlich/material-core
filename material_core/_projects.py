@@ -1,7 +1,7 @@
 """Round-trip helpers for the `projects.yml` manifest.
 
-Private module — shared by `matctl course add/remove`, `matctl doc add/remove`,
-and `matctl group add/remove/modify`. Uses `ruamel.yaml` so hand-edited
+Private module — shared by `matctl project add/remove/modify` and
+`matctl group add/remove/modify`. Uses `ruamel.yaml` so hand-edited
 comments and formatting in the manifest survive a programmatic rewrite.
 
 Brand defaults — two distinct defaults are deliberate:
@@ -10,6 +10,10 @@ Brand defaults — two distinct defaults are deliberate:
     has no brand: key, preserving backwards-compat for pre-REQ-014 manifests.
 The two never conflict: by the time resolve_brand() runs on a fresh entry,
 brand: is already populated.
+
+Legacy normalisation — load_manifest calls _normalise_legacy to rewrite
+type: course / type: doc entries into the new three-axis schema on every
+load. The rewrite is persisted the next time save_manifest runs.
 """
 
 from __future__ import annotations
@@ -30,6 +34,31 @@ def _yaml() -> YAML:
     return y
 
 
+def _normalise_legacy(doc: CommentedMap) -> bool:
+    """Rewrite legacy type:course/doc entries to the new three-axis schema in place.
+
+    Returns True if any entry was rewritten.
+    """
+    changed = False
+    for entry in doc.get("projects", []):
+        t = entry.get("type")
+        if t == "course":
+            entry["type"] = "project"
+            entry.setdefault("structure", "chapters")
+            entry.setdefault("slides", True)
+            entry.setdefault("brand", "thd")
+            entry.setdefault("lang", "de")
+            changed = True
+        elif t == "doc":
+            entry["type"] = "project"
+            entry.setdefault("structure", "single")
+            entry.setdefault("slides", False)
+            entry.setdefault("brand", "thd")
+            entry.setdefault("lang", "de")
+            changed = True
+    return changed
+
+
 def load_manifest(path: Path) -> CommentedMap:
     if not path.exists():
         raise click.ClickException(
@@ -41,6 +70,7 @@ def load_manifest(path: Path) -> CommentedMap:
         raise click.ClickException(
             f"{path} is missing the top-level `projects:` list"
         )
+    _normalise_legacy(doc)
     return doc
 
 
@@ -69,7 +99,7 @@ def dependents_of_group(doc: CommentedMap, group_name: str) -> list[str]:
     return [
         p["name"]
         for p in doc["projects"]
-        if p.get("type") in ("course", "doc")
+        if p.get("type") == "project"
         and p.get("group") == group_name
     ]
 
@@ -77,20 +107,25 @@ def dependents_of_group(doc: CommentedMap, group_name: str) -> list[str]:
 def add_project(
     doc: CommentedMap,
     name: str,
-    type_: str,
     title: str,
+    structure: str,
+    slides: bool,
+    brand: str,
+    lang: str,
     group: str | None = None,
-    brand: str = "generic",
 ) -> None:
     if name in project_names(doc):
         raise ValueError(f"{name} already in manifest")
     entry = CommentedMap()
     entry["name"] = name
-    entry["type"] = type_
+    entry["type"] = "project"
     entry["title"] = title
     if group is not None:
         entry["group"] = group
+    entry["structure"] = structure
+    entry["slides"] = slides
     entry["brand"] = brand
+    entry["lang"] = lang
     doc["projects"].append(entry)
 
 
@@ -138,3 +173,20 @@ def remove_group(doc: CommentedMap, name: str) -> bool:
             del projects[i]
             return True
     return False
+
+
+def update_axes(
+    entry: CommentedMap,
+    *,
+    brand: str | None = None,
+    lang: str | None = None,
+) -> list[str]:
+    """Apply axis updates to an entry. Returns human-readable change list."""
+    changes: list[str] = []
+    if brand is not None:
+        entry["brand"] = brand
+        changes.append(f"brand → {brand!r}")
+    if lang is not None:
+        entry["lang"] = lang
+        changes.append(f"lang → {lang!r}")
+    return changes

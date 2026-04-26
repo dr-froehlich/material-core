@@ -98,9 +98,9 @@ def regenerate_group(cwd: Path, group: str, manifest: CommentedMap) -> None:
         if child is None:
             continue
         pair = (child_name, str(child.get("title", child_name)))
-        if child.get("type") == "course":
+        if child.get("structure") == "chapters":
             courses.append(pair)
-        elif child.get("type") == "doc":
+        elif child.get("structure") == "single":
             docs.append(pair)
 
     group_dir = cwd / group
