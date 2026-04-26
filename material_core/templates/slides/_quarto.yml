@@ -7,7 +7,7 @@ format:
     theme:
       - default
       - ../brand.scss
-      - ../../shared/base.scss
+      - ../shared/base.scss
     {{LOGO_LINE}}
     footer:         "{{PROJECT_TITLE}} — Prof. Dr.-Ing. Peter Fröhlich"
     slide-number:   true

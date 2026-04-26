@@ -3,10 +3,11 @@
 Private module — used by `matctl course/doc add`, `matctl course/doc modify`,
 and `matctl link/unlink`.
 
-Each project directory gets three brand-specific symlinks:
+Each project directory gets four symlinks:
   <project>/_brand.yml    → pkg/brands/<brand>/_brand.yml
   <project>/brand.scss    → pkg/brands/<brand>/brand.scss
   <project>/brand-assets/ → pkg/brands/<brand>/assets/
+  <project>/shared/       → pkg/shared/
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import os
 from pathlib import Path
 
 
-_BRAND_SYMLINKS = ("_brand.yml", "brand.scss", "brand-assets")
+_BRAND_SYMLINKS = ("_brand.yml", "brand.scss", "brand-assets", "shared")
 
 
 def link_project(
@@ -24,12 +25,13 @@ def link_project(
     pkg_root: Path,
     force: bool = False,
 ) -> None:
-    """Create the three per-project brand symlinks inside project_dir."""
+    """Create the four per-project symlinks inside project_dir."""
     brand_dir = pkg_root / "brands" / brand
     targets = {
         "_brand.yml": brand_dir / "_brand.yml",
         "brand.scss": brand_dir / "brand.scss",
         "brand-assets": brand_dir / "assets",
+        "shared": pkg_root / "shared",
     }
     for link_name, src in targets.items():
         dst = project_dir / link_name
@@ -45,16 +47,16 @@ def link_project(
 
 
 def unlink_project(project_dir: Path) -> None:
-    """Remove the three per-project brand symlinks if they point into a brands/ dir."""
+    """Remove per-project symlinks that point into a brands/ or shared/ dir."""
     for link_name in _BRAND_SYMLINKS:
         dst = project_dir / link_name
         if not dst.is_symlink():
             continue
         try:
-            target = os.readlink(dst)
+            target = Path(os.readlink(dst))
         except OSError:
             continue
-        if "brands" in Path(target).parts:
+        if "brands" in target.parts or target.name == "shared":
             dst.unlink()
 
 

@@ -5,7 +5,7 @@ format:
     theme:
       - cosmo
       - brand.scss
-      - ../shared/base.scss
+      - shared/base.scss
     toc:                true
     toc-depth:          3
     number-sections:    true
@@ -16,4 +16,4 @@ format:
     toc:              true
     toc-depth:        2
     template-partials:
-      - ../shared/typst-show.typ
+      - shared/typst-show.typ
