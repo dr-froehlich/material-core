@@ -28,7 +28,7 @@ material-core/
     _brand_resolve.py          — per-project brand symlink wiring + placeholder helpers
     _projects.py               — manifest helpers (includes available_brands, resolve_brand)
     brands/                    — per-brand visual assets (generic, thd, pf)
-    shared/                    — brand-neutral: base.scss, fonts, typst-show.typ, colors.tex
+    shared/                    — brand-neutral: base.scss, fonts, typst-show.typ
     cloudflare/worker.js       — token-validating access Worker
     scripts/.env               — Cloudflare credentials (gitignored; read by matctl token)
     _compose.py                — template fragment composer (new in REQ-013)
