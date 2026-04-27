@@ -17,14 +17,18 @@ h1, h2, h3 {
   color: $brand-primary;
 }
 
-// Blockquotes and section numbers get their color computed from Bootstrap's
-// $secondary, which for THD is a very light background blue (#e8f0f7).
-// Override to inherit from the parent element so they stay readable.
+// Blockquotes, section numbers, and figure captions get their color computed
+// from Bootstrap's $secondary, which for THD is a very light background blue
+// (#e8f0f7). Override to inherit from the parent element so they stay readable.
 .blockquote {
   color: inherit;
 }
 
 .header-section-number {
+  color: inherit;
+}
+
+.figure-caption {
   color: inherit;
 }
 
