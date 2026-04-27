@@ -74,7 +74,7 @@ def brand_quarto_book_keys(brand: str) -> dict[str, str]:
     if brand == "generic":
         return {}
     logo_files = {"thd": "THD-logo.png", "pf": "logo_pf.svg"}
-    favicon_files = {"thd": "favicon.png", "pf": "favicon.svg"}
+    favicon_files = {"thd": "favicon.ico", "pf": "favicon.svg"}
     logo = logo_files.get(brand, f"logo_{brand}.png")
     favicon = favicon_files.get(brand, f"favicon_{brand}.png")
     return {
@@ -95,7 +95,7 @@ def brand_placeholders(brand: str) -> dict[str, str]:
         "pf": "logo_pf.svg",
     }
     favicon_files = {
-        "thd": "favicon.png",
+        "thd": "favicon.ico",
         "pf": "favicon.svg",
     }
     logo = logo_files.get(brand, f"logo_{brand}.png")
