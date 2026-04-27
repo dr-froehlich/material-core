@@ -3,3 +3,9 @@ $brand-primary:     #d99d44;  // warm-gold
 $brand-secondary:   #e1c3a0;  // light-warm
 $brand-accent:      #164257;  // dark-accent
 $brand-footer-text: "© Peter Fröhlich";
+
+/*-- scss:rules --*/
+.sidebar-logo {
+  max-height: 60px;
+  width: auto;
+}
