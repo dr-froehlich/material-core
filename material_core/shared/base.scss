@@ -32,6 +32,15 @@ h1, h2, h3 {
   color: inherit;
 }
 
+// cosmo emits `figcaption, caption { color: $secondary }`, which paints
+// figure captions in the very-light THD secondary. Quarto labels figures
+// with `<figcaption class="quarto-float-caption …">`, so the .figure-caption
+// override above doesn't reach them — target figcaption directly.
+figcaption,
+caption {
+  color: inherit;
+}
+
 // Callout styling
 .callout-note {
   border-left-color: $brand-primary;
