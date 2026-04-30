@@ -952,5 +952,88 @@ def token_show(token_value: str) -> None:
     click.echo(json.dumps(raw, indent=2))
 
 
+# ---------------------------------------------------------------------------
+# doctor
+# ---------------------------------------------------------------------------
+
+def _quarto_data_dir() -> Path:
+    """Return the Quarto user data directory for the current platform."""
+    import os
+    import sys
+
+    home = Path.home()
+    if sys.platform == "darwin":
+        return home / "Library" / "Application Support" / "quarto"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA") or str(home / "AppData" / "Roaming")
+        return Path(appdata) / "quarto"
+    xdg = os.environ.get("XDG_DATA_HOME", "")
+    base = Path(xdg) if xdg else home / ".local" / "share"
+    return base / "quarto"
+
+
+@main.command()
+@click.option(
+    "--install",
+    is_flag=True,
+    help="Install missing dependencies automatically (runs quarto install …).",
+)
+def doctor(install: bool) -> None:
+    """Check local prerequisites for PDF rendering with Mermaid diagrams.
+
+    Exits 0 if all checks pass, 1 if any check fails.
+    """
+    import shutil
+    import subprocess
+
+    all_ok = True
+
+    # --- quarto on PATH ---
+    quarto_bin = shutil.which("quarto")
+    if quarto_bin:
+        click.echo("  [OK]   quarto: found")
+    else:
+        click.echo("  [FAIL] quarto: not found on PATH")
+        click.echo("         Install Quarto from https://quarto.org/docs/get-started/")
+        all_ok = False
+
+    # --- chrome-headless-shell for Mermaid → PDF ---
+    chrome_dir = _quarto_data_dir() / "chrome-headless-shell"
+    chrome_installed = chrome_dir.exists() and any(chrome_dir.iterdir())
+
+    if chrome_installed:
+        click.echo("  [OK]   chrome-headless-shell: found (Mermaid → PDF)")
+    elif install:
+        if not quarto_bin:
+            click.echo("  [FAIL] chrome-headless-shell: cannot install — quarto not on PATH")
+            all_ok = False
+        else:
+            click.echo("  [--]   chrome-headless-shell: not found — installing...")
+            result = subprocess.run(
+                ["quarto", "install", "chrome-headless-shell", "--no-prompt"],
+            )
+            if result.returncode == 0:
+                click.echo("  [OK]   chrome-headless-shell: installed")
+            else:
+                click.echo(
+                    f"  [FAIL] chrome-headless-shell: install exited {result.returncode}"
+                )
+                all_ok = False
+    else:
+        click.echo("  [FAIL] chrome-headless-shell: not found")
+        click.echo(
+            "         {mermaid} blocks will be missing or silently skipped in"
+        )
+        click.echo("         orange-book-typst (PDF) output without this tool.")
+        click.echo("         Fix:  quarto install chrome-headless-shell --no-prompt")
+        click.echo("         Or:   matctl doctor --install")
+        all_ok = False
+
+    if all_ok:
+        click.echo("All checks passed.")
+    else:
+        raise SystemExit(1)
+
+
 if __name__ == "__main__":
     main()

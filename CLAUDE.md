@@ -121,6 +121,21 @@ matctl link
 quarto preview <course>     # picks up live shared/base.scss edits
 ```
 
+## Local prerequisites for PDF rendering
+
+`orange-book-typst` (PDF) output requires `chrome-headless-shell` to render
+`{mermaid}` fenced blocks. Without it, Mermaid diagrams are silently missing
+from the PDF. CI installs it explicitly; on a new local machine run:
+
+```bash
+quarto install chrome-headless-shell --no-prompt
+```
+
+Or use `matctl doctor` to check all prerequisites and `matctl doctor --install`
+to auto-install any that are missing. The binary is cached at
+`~/.local/share/quarto/chrome-headless-shell/` (Linux/WSL) and is version-pinned
+by Quarto (~150 MB one-time download per machine).
+
 ## Requirements tracking
 
 New requirements, plans, and status changes live in `docs/requirements/` and
@@ -140,4 +155,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0). REQ-015 DONE (`matctl doctor` command checks chrome-headless-shell for Mermaid → PDF; `matctl doctor --install` auto-installs; CLAUDE.md and authoring.qmd updated).
