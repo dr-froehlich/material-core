@@ -479,7 +479,7 @@ def project_modify(
     lang: object,
     structure: object,
 ) -> None:
-    """Modify a project's metadata, brand, language, or slides presence."""
+    """Modify a project's title, group, brand, language, or slides presence."""
     if structure is not _UNSET:
         raise click.ClickException(
             "--structure flip not supported automatically; "
