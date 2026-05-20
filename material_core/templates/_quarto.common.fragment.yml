@@ -1,5 +1,11 @@
 lang: "{{LANG}}"
 
+# Section cross-references render as "§ N.M" (a hyperlink in HTML).
+# Tag a heading with `{#sec-slug}` and reference it with `@sec-slug`
+# in body text — avoids hard-coded numbers that break on reordering.
+crossref:
+  sec-prefix: "§"
+
 format:
   html:
     theme:

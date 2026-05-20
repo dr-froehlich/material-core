@@ -26,7 +26,7 @@ board sketches to draw, references to previous semesters.
 :::
 :::
 
-## Key Concept
+## Key Concept {#sec-key-concept}
 
 Content that is relevant for both script and slides lives here as plain
 markdown — no fencing needed.
@@ -40,6 +40,13 @@ As shown in @eq-example ...
 ![Caption for a shared figure](../assets/diagrams/placeholder.svg){#fig-example}
 
 See @fig-example for the circuit diagram.
+
+<!-- Section cross-references: tag any heading you want to reference with
+     {#sec-slug}, then reference it with @sec-slug in body text. With the
+     crossref.sec-prefix: "§" setting in _quarto.yml, @sec-key-concept
+     renders as a "§ N.M" hyperlink. Use this in preference to hard-coding
+     section numbers — refs survive chapter reordering. -->
+The mass–energy equivalence stated in @sec-key-concept above is revisited later.
 
 <!-- shared content example: exercise or reference table -->
 {{< include ../_shared/_exercise-example.qmd >}}
