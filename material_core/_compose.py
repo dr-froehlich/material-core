@@ -120,13 +120,18 @@ def compose(
 
     quarto_doc = _deep_merge(common, struct_frag)
 
-    # Inject brand-specific book keys (favicon, sidebar.logo) for non-generic brands
+    # Inject brand-specific keys (favicon, sidebar.logo) for non-generic brands.
+    # Chapters structure uses Quarto's book project: keys live under `book:`.
+    # Single structure has no book key — favicon goes under format.html.
     book_keys = brand_quarto_book_keys(brand)
-    if book_keys and "book" in quarto_doc:
-        quarto_doc["book"]["favicon"] = book_keys["favicon"]
-        if "sidebar" not in quarto_doc["book"]:
-            quarto_doc["book"]["sidebar"] = CommentedMap()
-        quarto_doc["book"]["sidebar"]["logo"] = book_keys["logo"]
+    if book_keys:
+        if "book" in quarto_doc:
+            quarto_doc["book"]["favicon"] = book_keys["favicon"]
+            if "sidebar" not in quarto_doc["book"]:
+                quarto_doc["book"]["sidebar"] = CommentedMap()
+            quarto_doc["book"]["sidebar"]["logo"] = book_keys["logo"]
+        else:
+            quarto_doc["format"]["html"]["favicon"] = book_keys["favicon"]
 
     quarto_path = dest / "_quarto.yml"
     with quarto_path.open("w", encoding="utf-8") as f:

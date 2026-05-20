@@ -83,7 +83,11 @@ material/ (content repo, consumed separately):
   (chapters) or `index.qmd` front matter (single). `--brand` rewires per-project
   symlinks and updates `_quarto.yml` favicon/sidebar.logo in place. `--slides`
   (false→true) adds the slides overlay; `--no-slides` rejected when `slides/` has content.
-  `--fingerprint/--no-fingerprint` toggles the per-project colophon (REQ-016).
+  `--fingerprint/--no-fingerprint` toggles the per-project colophon (REQ-016)
+  and retrofits/unwires the `_quarto.yml` pre-render hook, the `index.qmd`
+  (and `slides/01-introduction.qmd` if slides are enabled) include line, and
+  the `.gitignore` entries in place — safe to run on projects scaffolded
+  before v0.8.0.
   `--structure` is always rejected — create a new project and move content by hand.
   Regenerates landing pages for all affected groups.
 
