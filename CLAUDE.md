@@ -127,7 +127,7 @@ material/ (content repo, consumed separately):
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/pfroehlich/material-core@v0.7.0"
+pipx install "git+https://github.com/dr-froehlich/material-core@v0.8.3"
 matctl link
 quarto render <course>
 ```
@@ -140,6 +140,20 @@ cd /home/peter/material     # formerly vorlesungen
 matctl link
 quarto preview <course>     # picks up live shared/base.scss edits
 ```
+
+If `matctl --version` does not match the `version` in `pyproject.toml`,
+your local install drifted — it was created before `--editable` or never
+reinstalled across a version bump. The Python edits under `material_core/`
+are *not* live until you fix it:
+
+```bash
+pipx install --force --editable /home/peter/projects/material-core
+matctl --version    # must match pyproject.toml
+```
+
+(SCSS, brand assets, and templates under `material_core/` are served via
+the per-project symlinks `matctl link` creates and are always live
+regardless — only Python code requires the editable install.)
 
 ## Local prerequisites for PDF rendering
 
