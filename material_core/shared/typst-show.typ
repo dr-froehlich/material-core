@@ -1,13 +1,18 @@
 #import "orange-book/lib.typ": book, part, chapter, appendices
 
 // Quarto's typst output stamps Mermaid PNGs with pixel-derived absolute
-// width/height (e.g. 14in) that overflow A4 text blocks. Shrink any figure
-// wider than the available text block to fit.
+// width/height (e.g. 14in) that overflow A4 text blocks. Shrink the body of
+// any figure wider than the available text block; keep the caption at its
+// original size.
 #show figure: it => layout(size => context {
-  let m = measure(it)
+  let m = measure(it.body)
   if m.width > size.width {
     let f = size.width / m.width
-    scale(x: f * 100%, y: f * 100%, origin: top + left, reflow: true, it)
+    align(center)[
+      #scale(x: f * 100%, y: f * 100%, origin: top + left, reflow: true, it.body)
+      #v(it.gap, weak: true)
+      #it.caption
+    ]
   } else { it }
 })
 
