@@ -773,12 +773,7 @@ def project_modify(
     # --fingerprint / --no-fingerprint
     if fingerprint_flag is not None:
         current = entry.get("fingerprint", True) is not False
-        if fingerprint_flag == current:
-            click.echo(
-                f"fingerprint already {'enabled' if current else 'disabled'} "
-                "— no change"
-            )
-        else:
+        if fingerprint_flag != current:
             if fingerprint_flag:
                 if "fingerprint" in entry:
                     del entry["fingerprint"]
@@ -786,15 +781,21 @@ def project_modify(
             else:
                 entry["fingerprint"] = False
                 changes.append("fingerprint → disabled")
-            # Retrofit/unwire the in-project files. Safe for both newly
-            # scaffolded projects (idempotent — no-op) and pre-REQ-016
-            # projects that were never wired up.
-            has_slides = bool(entry.get("slides", False))
-            retrofit_notes = _retrofit_fingerprint(
-                dest, enable=fingerprint_flag, slides=has_slides
+        # Always run the retrofit when the flag is specified: pre-v0.8.0
+        # projects default to `fingerprint: True` in the manifest but
+        # don't have the in-project files wired up. The helpers are
+        # idempotent, so already-wired projects are a no-op.
+        has_slides = bool(entry.get("slides", False))
+        retrofit_notes = _retrofit_fingerprint(
+            dest, enable=fingerprint_flag, slides=has_slides
+        )
+        for note in retrofit_notes:
+            changes.append(note)
+        if fingerprint_flag == current and not retrofit_notes:
+            click.echo(
+                f"fingerprint already {'enabled' if current else 'disabled'} "
+                "and fully wired — no change"
             )
-            for note in retrofit_notes:
-                changes.append(note)
 
     # --lang
     if lang is not _UNSET:
