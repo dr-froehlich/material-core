@@ -1,6 +1,7 @@
 project:
   type: book
   output-dir: _output/book
+  pre-render: matctl fingerprint --write
 
 book:
   title:    "{{PROJECT_TITLE}}"

@@ -113,6 +113,7 @@ def add_project(
     brand: str,
     lang: str,
     group: str | None = None,
+    fingerprint: bool = True,
 ) -> None:
     if name in project_names(doc):
         raise ValueError(f"{name} already in manifest")
@@ -126,6 +127,10 @@ def add_project(
     entry["slides"] = slides
     entry["brand"] = brand
     entry["lang"] = lang
+    # Default-True for the fingerprint flag — only write the key when
+    # explicitly disabled, so legacy manifests stay clean.
+    if not fingerprint:
+        entry["fingerprint"] = False
     doc["projects"].append(entry)
 
 

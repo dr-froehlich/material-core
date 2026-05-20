@@ -22,6 +22,8 @@ from ._brand_resolve import (
 )
 from ._cloudflare import KVClient, load_credentials
 from ._compose import compose
+from ._fingerprint import resolve as resolve_fingerprint
+from ._fingerprint import write_colophon, write_variables
 from ._landing import regenerate_group
 from ._projects import (
     PROJECTS_FILE,
@@ -82,6 +84,7 @@ def _scaffold_new_project(
     lang: str,
     subtitle: str = "",
     group: str | None = None,
+    fingerprint: bool = True,
 ) -> None:
     """Validate, compose template, patch manifest, echo next steps."""
     _validate_name(name)
@@ -131,6 +134,7 @@ def _scaffold_new_project(
         brand=brand,
         lang=lang,
         group=group,
+        fingerprint=fingerprint,
     )
     save_manifest(manifest_path, manifest)
     _regenerate_affected_groups(manifest, group)
@@ -399,6 +403,12 @@ def project_cmd() -> None:
     default=None,
     help="Optional URL-path group; deploys under <group>/<name>/.",
 )
+@click.option(
+    "--fingerprint/--no-fingerprint",
+    default=True,
+    show_default=True,
+    help="Render the per-project commit + template colophon (REQ-016).",
+)
 def project_add(
     name: str,
     structure: str,
@@ -408,6 +418,7 @@ def project_add(
     title: str | None,
     subtitle: str,
     group: str | None,
+    fingerprint: bool,
 ) -> None:
     """Scaffold a new project and register it in projects.yml."""
     if subtitle and structure == "single":
@@ -422,6 +433,7 @@ def project_add(
         lang=lang,
         subtitle=subtitle,
         group=group,
+        fingerprint=fingerprint,
     )
 
 
@@ -470,6 +482,12 @@ def project_remove(name: str, yes: bool) -> None:
     type=click.UNPROCESSED,
     help="Structure axis — always rejected; create a new project and move content by hand.",
 )
+@click.option(
+    "--fingerprint/--no-fingerprint",
+    "fingerprint_flag",
+    default=None,
+    help="Toggle the per-project commit + template colophon (REQ-016).",
+)
 def project_modify(
     name: str,
     title: object,
@@ -478,6 +496,7 @@ def project_modify(
     slides: bool | None,
     lang: object,
     structure: object,
+    fingerprint_flag: bool | None,
 ) -> None:
     """Modify a project's title, group, brand, language, or slides presence."""
     if structure is not _UNSET:
@@ -488,10 +507,11 @@ def project_modify(
 
     has_change = any(
         x is not _UNSET for x in (title, group, brand, lang)
-    ) or slides is not None
+    ) or slides is not None or fingerprint_flag is not None
     if not has_change:
         raise click.UsageError(
-            "specify at least one of --title, --group, --brand, --slides/--no-slides, --lang"
+            "specify at least one of --title, --group, --brand, "
+            "--slides/--no-slides, --lang, --fingerprint/--no-fingerprint"
         )
 
     cwd = Path.cwd()
@@ -591,6 +611,23 @@ def project_modify(
             changes.append("slides → false")
         else:
             click.echo(f"slides already {'true' if slides else 'false'} — no change")
+
+    # --fingerprint / --no-fingerprint
+    if fingerprint_flag is not None:
+        current = entry.get("fingerprint", True) is not False
+        if fingerprint_flag == current:
+            click.echo(
+                f"fingerprint already {'enabled' if current else 'disabled'} "
+                "— no change"
+            )
+        else:
+            if fingerprint_flag:
+                if "fingerprint" in entry:
+                    del entry["fingerprint"]
+                changes.append("fingerprint → enabled")
+            else:
+                entry["fingerprint"] = False
+                changes.append("fingerprint → disabled")
 
     # --lang
     if lang is not _UNSET:
@@ -1033,6 +1070,90 @@ def doctor(install: bool) -> None:
         click.echo("All checks passed.")
     else:
         raise SystemExit(1)
+
+
+# ---------------------------------------------------------------------------
+# fingerprint
+# ---------------------------------------------------------------------------
+
+def _locate_project_for_fingerprint(start: Path) -> tuple[Path, str | None]:
+    """Walk up from `start` looking for projects.yml; return (project_dir, name).
+
+    The project_dir is the directory immediately under the manifest's
+    parent that is an ancestor of (or equals) `start`. For a slides
+    invocation (cwd = <repo>/<project>/slides), project_dir is
+    `<repo>/<project>`. Returns `(start, None)` if no manifest is found
+    — the caller should still render with "unknown" fallbacks.
+    """
+    cur = start.resolve()
+    for ancestor in [cur, *cur.parents]:
+        manifest = ancestor / PROJECTS_FILE
+        if manifest.is_file():
+            # The project is the path segment one level below ancestor
+            # that is an ancestor of `start` (or `start` itself).
+            try:
+                rel = cur.relative_to(ancestor)
+            except ValueError:
+                return (start, None)
+            parts = rel.parts
+            if not parts:
+                # cwd is the repo root itself — no specific project.
+                return (start, None)
+            project_name = parts[0]
+            return (ancestor / project_name, project_name)
+    return (start, None)
+
+
+@main.command()
+@click.argument(
+    "project",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    required=False,
+)
+@click.option(
+    "--write",
+    is_flag=True,
+    help="Write `_variables.yml` and `_fingerprint.qmd` into the current "
+         "directory (intended for use as a Quarto pre-render hook).",
+)
+def fingerprint(project: Path | None, write: bool) -> None:
+    """Resolve the per-project commit + template fingerprint (REQ-016).
+
+    Without `--write`, prints the resolved values for debugging. With
+    `--write`, generates `_variables.yml` (exposing `commit`,
+    `commit_date`, `template` as Quarto vars) and `_fingerprint.qmd`
+    (the visible colophon block, or empty when the project's manifest
+    entry sets `fingerprint: false`).
+    """
+    cwd = Path.cwd()
+    start = project.resolve() if project is not None else cwd
+    project_dir, project_name = _locate_project_for_fingerprint(start)
+
+    enabled = True
+    if project_name is not None:
+        manifest_path = project_dir.parent / PROJECTS_FILE
+        try:
+            manifest = load_manifest(manifest_path)
+            entry = find_entry(manifest, project_name)
+            if entry is not None and entry.get("fingerprint") is False:
+                enabled = False
+        except click.ClickException:
+            pass
+
+    fp = resolve_fingerprint(project_dir)
+
+    if not write:
+        click.echo(f"commit:      {fp.commit}")
+        click.echo(f"commit_date: {fp.commit_date}")
+        click.echo(f"template:    {fp.template}")
+        click.echo(f"enabled:     {enabled}")
+        return
+
+    # Write next to cwd so slides/ (with its own _quarto.yml) gets its
+    # own _variables.yml and _fingerprint.qmd, and the chapters/single
+    # project root gets the same files.
+    write_variables(cwd, fp)
+    write_colophon(cwd, fp, enabled=enabled)
 
 
 if __name__ == "__main__":

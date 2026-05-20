@@ -16,5 +16,6 @@
 | REQ-013 | Orthogonal universal document creation — chapters × slides × brand | OPEN | [REQ-013](REQ-013.md) | REQ-005, REQ-012, REQ-014 |
 | REQ-014 | Multi-brand support — visual brand registry in `material-core` | DONE | [REQ-014](REQ-014.md) | REQ-008 |
 | REQ-015 | Make Mermaid → PDF (Typst) dependency explicit and self-installing | DONE | [REQ-015](REQ-015.md) | – |
+| REQ-016 | Document identity fingerprint — per-project commit hash and template version in rendered output | DONE | [REQ-016](REQ-016.md) | REQ-013, REQ-014 |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)

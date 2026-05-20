@@ -5,3 +5,5 @@ date:   today
 ---
 
 Document body — replace with content.
+
+{{< include _fingerprint.qmd >}}

@@ -26,3 +26,5 @@ After completing this course, students will be able to:
 The slides used in class are available at: [slides/](../slides/)
 
 Personal notes and organizational remarks are not included in this published version.
+
+{{< include _fingerprint.qmd >}}

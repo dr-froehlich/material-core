@@ -63,7 +63,7 @@ material/ (content repo, consumed separately):
   already empty by precondition.
 - `matctl group modify <name> --title "..."` — update the group's title in the
   manifest and regenerate `<group>/index.html`.
-- `matctl project add <name> --structure [chapters|single] --slides|--no-slides --brand <name> --lang [de|en] [--title "..."] [--subtitle "..."] [--group <name>]`
+- `matctl project add <name> --structure [chapters|single] --slides|--no-slides --brand <name> --lang [de|en] [--title "..."] [--subtitle "..."] [--group <name>] [--fingerprint|--no-fingerprint]`
   — scaffold a new project from orthogonal template fragments and register it in
   `projects.yml`. The three orthogonal axes produce all eight combinations:
   - `--structure chapters` → multi-chapter Quarto book (replaces `course add`)
@@ -72,15 +72,18 @@ material/ (content repo, consumed separately):
   - `--brand` → visual identity (generic, thd, pf); required
   - `--lang de|en` → crossref label language; required
   `--subtitle` only applies to `--structure chapters`. `--group` requires the group
-  to exist; deploys under `<group>/<name>/`. Regenerates `<group>/index.html`.
+  to exist; deploys under `<group>/<name>/`. `--fingerprint/--no-fingerprint`
+  toggles the per-project commit + template colophon (REQ-016; default on).
+  Regenerates `<group>/index.html`.
 - `matctl project remove <name> [--yes]` — remove the project directory and
   manifest entry (remote content and KV tokens must be cleaned up manually).
   Regenerates `<group>/index.html` for the removed entry's group (if any).
-- `matctl project modify <name> [--title "..."] [--group <name>] [--brand <name>] [--slides|--no-slides] [--lang de|en]`
+- `matctl project modify <name> [--title "..."] [--group <name>] [--brand <name>] [--slides|--no-slides] [--lang de|en] [--fingerprint|--no-fingerprint]`
   — update a project's metadata. `--title` is written through to `_quarto.yml:book.title`
   (chapters) or `index.qmd` front matter (single). `--brand` rewires per-project
   symlinks and updates `_quarto.yml` favicon/sidebar.logo in place. `--slides`
   (false→true) adds the slides overlay; `--no-slides` rejected when `slides/` has content.
+  `--fingerprint/--no-fingerprint` toggles the per-project colophon (REQ-016).
   `--structure` is always rejected — create a new project and move content by hand.
   Regenerates landing pages for all affected groups.
 
@@ -101,6 +104,19 @@ material/ (content repo, consumed separately):
 - `matctl token revoke <token>` — delete the KV entry; effect is immediate at
   the Worker.
 - `matctl token show <token>` — pretty-print the raw KV JSON for one token.
+- `matctl fingerprint [--write] [<project>]` — resolve and (with `--write`) emit
+  the per-project document-identity fingerprint (REQ-016): the project's
+  last-touching commit hash (with `-dirty` suffix on uncommitted edits inside
+  the project tree) and the installed `material-core` package version. Set as
+  the Quarto `project.pre-render` hook in scaffolded projects; writes
+  `_variables.yml` (exposes `commit`, `commit_date`, `template` as
+  `{{< var ... >}}`) and `_fingerprint.qmd` (the visible colophon block,
+  included from `index.qmd` for chapters/single and from the introduction
+  deck for slides). Both generated files are listed in the project
+  `.gitignore`. Falls back to `unknown` when `git` is unavailable or the
+  directory is not in a checkout. Opt out per project with `fingerprint: false`
+  in `projects.yml` or `matctl project add --no-fingerprint` /
+  `matctl project modify --no-fingerprint`.
 
 ## How this repo is consumed
 
@@ -155,4 +171,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0). REQ-015 DONE (`matctl doctor` command checks chrome-headless-shell for Mermaid → PDF; `matctl doctor --install` auto-installs; CLAUDE.md and authoring.qmd updated).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0). REQ-015 DONE (`matctl doctor` command checks chrome-headless-shell for Mermaid → PDF; `matctl doctor --install` auto-installs; CLAUDE.md and authoring.qmd updated). REQ-016 DONE (`matctl fingerprint` pre-render hook emits `_variables.yml` + `_fingerprint.qmd`; per-project commit hash + template version visible in HTML/PDF/slides output; `--no-fingerprint` opt-out — v0.8.0).

@@ -38,3 +38,5 @@ Slide content: concise, visual, bullet-driven.
 ::: notes
 Remind students: details in the script, Chapter 1.
 :::
+
+{{< include _fingerprint.qmd >}}
