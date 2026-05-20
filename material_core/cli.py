@@ -55,6 +55,15 @@ _NAME_RE = re.compile(r"[a-z0-9][a-z0-9._-]*")
 _UNSET: object = object()
 
 
+def _strip_trailing_slash(
+    ctx: click.Context, param: click.Parameter, value: object
+) -> object:
+    """Normalize a name argument: drop a trailing '/' from shell tab-completion."""
+    if isinstance(value, str):
+        return value.rstrip("/")
+    return value
+
+
 def _package_root() -> Path:
     return Path(str(files("material_core")))
 
@@ -521,7 +530,7 @@ def project_cmd() -> None:
 
 
 @project_cmd.command("add")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option(
     "--structure",
     required=True,
@@ -596,7 +605,7 @@ def project_add(
 
 
 @project_cmd.command("remove")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option("--yes", is_flag=True, help="Skip confirmation prompt.")
 def project_remove(name: str, yes: bool) -> None:
     """Remove a project from the manifest and delete its directory."""
@@ -604,7 +613,7 @@ def project_remove(name: str, yes: bool) -> None:
 
 
 @project_cmd.command("modify")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option(
     "--title",
     default=_UNSET,
@@ -938,7 +947,7 @@ def group_cmd() -> None:
 
 
 @group_cmd.command("add")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option("--title", required=True, help="Human-readable title.")
 def group_add(name: str, title: str) -> None:
     """Register a new group in projects.yml."""
@@ -962,7 +971,7 @@ def group_add(name: str, title: str) -> None:
 
 
 @group_cmd.command("remove")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option("--yes", is_flag=True, help="Skip confirmation prompt.")
 def group_remove(name: str, yes: bool) -> None:
     """Remove a group from projects.yml (fails if any dependents remain)."""
@@ -997,7 +1006,7 @@ def group_remove(name: str, yes: bool) -> None:
 
 
 @group_cmd.command("modify")
-@click.argument("name")
+@click.argument("name", callback=_strip_trailing_slash)
 @click.option(
     "--title",
     default=_UNSET,
@@ -1037,7 +1046,7 @@ def token() -> None:
 
 
 @token.command("issue")
-@click.argument("course")
+@click.argument("course", callback=_strip_trailing_slash)
 @click.argument("label")
 @click.option(
     "--days",
@@ -1081,7 +1090,7 @@ def token_issue(course: str, label: str, days: int) -> None:
 
 
 @token.command("list")
-@click.argument("course", required=False)
+@click.argument("course", required=False, callback=_strip_trailing_slash)
 def token_list(course: str | None) -> None:
     """List access tokens, optionally filtered to one COURSE."""
     account_id, api_token, namespace_id = load_credentials()
