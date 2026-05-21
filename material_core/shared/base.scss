@@ -96,3 +96,12 @@ caption {
 .reveal .footer:empty {
   display: none;
 }
+
+// Mermaid overflow fix: Quarto's mermaid-init.js sets svg.style.maxWidth = null
+// and writes an absolute pixel width from the natural viewBox, which spills
+// wide sequence diagrams off the slide. !important wins against the inline
+// style; viewBox handles proportional downscaling.
+.reveal svg.mermaid-js {
+  max-width: 100% !important;
+  height: auto !important;
+}
