@@ -765,6 +765,34 @@ def _toggle_fingerprint_gitignore(dest: Path, enable: bool) -> bool:
     return True
 
 
+_SLIDES_GITIGNORE_LINES = (
+    "# Slides build artifacts (Quarto puts revealjs html + Typst intermediates",
+    "# next to the source .qmd, not under slides/_output/).",
+    "slides/_output/",
+    "slides/*.html",
+    "slides/*.typ",
+    "slides/*_files/",
+)
+
+
+def _ensure_slides_gitignore(dest: Path) -> bool:
+    """Append slides build-artifact ignore lines if missing. Idempotent."""
+    gi = dest / ".gitignore"
+    existing = gi.read_text(encoding="utf-8") if gi.exists() else ""
+    live = [line for line in _SLIDES_GITIGNORE_LINES if not line.startswith("#")]
+    have = set(existing.splitlines())
+    if all(line in have for line in live):
+        return False
+    prefix = existing
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    if prefix and not prefix.endswith("\n\n"):
+        prefix += "\n"
+    new_text = prefix + "\n".join(_SLIDES_GITIGNORE_LINES) + "\n"
+    gi.write_text(new_text, encoding="utf-8")
+    return True
+
+
 def _retrofit_fingerprint(dest: Path, enable: bool, slides: bool) -> list[str]:
     """Wire (or unwire) all fingerprint touchpoints in an existing project."""
     notes: list[str] = []
@@ -1116,6 +1144,12 @@ def project_modify(
             "_quarto.yml: format-links Slides entry "
             + ("added/updated" if slides_now else "removed")
         )
+
+    # Slides .gitignore retrofit (v0.8.7): ignore build artifacts that
+    # Quarto drops next to the source .qmd (revealjs html, Typst .typ,
+    # *_files/ resource bundles). Only meaningful when slides exist.
+    if slides_now and _ensure_slides_gitignore(dest):
+        changes.append(".gitignore: slides build-artifact entries added")
 
     save_manifest(manifest_path, manifest)
 
