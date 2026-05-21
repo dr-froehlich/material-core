@@ -13,6 +13,7 @@ from pathlib import Path
 
 import click
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import SingleQuotedScalarString
 
 from ._brand_resolve import (
     brand_quarto_book_keys,
@@ -330,7 +331,9 @@ def _rewrite_brand_in_quarto(dest: Path, brand: str) -> None:
     """Update or remove favicon and sidebar.logo in _quarto.yml.
 
     Chapters projects keep these under `book:`; single projects use
-    `format.html.favicon` (no sidebar in a single document).
+    `format.html.favicon` (no sidebar in a single document) and additionally
+    emit a `<link rel="icon">` tag plus a `project.resources` entry because
+    Quarto ignores `favicon:` outside book/website project types.
     """
     target = dest / "_quarto.yml"
     if not target.exists():
@@ -357,15 +360,66 @@ def _rewrite_brand_in_quarto(dest: Path, brand: str) -> None:
                 if not doc["book"]["sidebar"]:
                     doc["book"].pop("sidebar", None)
     else:
+        from ruamel.yaml.comments import CommentedMap
         html = doc.get("format", {}).get("html")
         if html is None:
             return
         if book_keys:
-            html["favicon"] = book_keys["favicon"]
+            favicon = book_keys["favicon"]
+            html["favicon"] = favicon
+            link_entry = CommentedMap([("text", SingleQuotedScalarString(f'<link rel="icon" href="{favicon}">'))])
+            html["include-in-header"] = _replace_favicon_link(html.get("include-in-header"), link_entry)
+            project = doc.setdefault("project", CommentedMap())
+            project["resources"] = _replace_favicon_resource(project.get("resources"), favicon)
         else:
             html.pop("favicon", None)
+            stripped = _replace_favicon_link(html.get("include-in-header"), None)
+            if stripped:
+                html["include-in-header"] = stripped
+            else:
+                html.pop("include-in-header", None)
+            project = doc.get("project")
+            if project is not None:
+                stripped_res = _replace_favicon_resource(project.get("resources"), None)
+                if stripped_res:
+                    project["resources"] = stripped_res
+                else:
+                    project.pop("resources", None)
     with target.open("w", encoding="utf-8") as f:
         yaml.dump(doc, f)
+
+
+_FAVICON_LINK_RE = re.compile(r'<link[^>]*rel=["\']icon["\']', re.IGNORECASE)
+
+
+def _replace_favicon_link(existing, new_entry):
+    """Return a new include-in-header list with the favicon link entry replaced or removed.
+
+    Preserves any non-favicon entries the user may have added. `new_entry`
+    is a CommentedMap to insert, or None to strip.
+    """
+    items = list(existing) if existing else []
+    kept = []
+    for item in items:
+        text = item.get("text") if isinstance(item, dict) else item
+        if isinstance(text, str) and _FAVICON_LINK_RE.search(text):
+            continue
+        kept.append(item)
+    if new_entry is not None:
+        kept.insert(0, new_entry)
+    return kept
+
+
+def _replace_favicon_resource(existing, new_path):
+    """Return a new resources list with brand-assets/favicon* entries replaced or removed."""
+    items = list(existing) if existing else []
+    kept = [
+        item for item in items
+        if not (isinstance(item, str) and item.startswith("brand-assets/favicon"))
+    ]
+    if new_path is not None and new_path not in kept:
+        kept.insert(0, new_path)
+    return kept
 
 
 _FP_HOOK = "matctl fingerprint --write"

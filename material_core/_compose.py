@@ -13,6 +13,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.scalarstring import SingleQuotedScalarString
 
 from ._brand_resolve import brand_placeholders, brand_quarto_book_keys, link_project
 from ._projects import available_brands
@@ -122,7 +123,10 @@ def compose(
 
     # Inject brand-specific keys (favicon, sidebar.logo) for non-generic brands.
     # Chapters structure uses Quarto's book project: keys live under `book:`.
-    # Single structure has no book key — favicon goes under format.html.
+    # Single structure has no book key — favicon goes under format.html, but
+    # Quarto ignores `favicon:` outside book/website project types, so we also
+    # emit a `<link rel="icon">` tag via include-in-header and declare the
+    # asset under project.resources so it ships to the output directory.
     book_keys = brand_quarto_book_keys(brand)
     if book_keys:
         if "book" in quarto_doc:
@@ -131,7 +135,13 @@ def compose(
                 quarto_doc["book"]["sidebar"] = CommentedMap()
             quarto_doc["book"]["sidebar"]["logo"] = book_keys["logo"]
         else:
-            quarto_doc["format"]["html"]["favicon"] = book_keys["favicon"]
+            favicon = book_keys["favicon"]
+            html = quarto_doc["format"]["html"]
+            html["favicon"] = favicon
+            link_entry = CommentedMap([("text", SingleQuotedScalarString(f'<link rel="icon" href="{favicon}">'))])
+            html["include-in-header"] = [link_entry]
+            project = quarto_doc.setdefault("project", CommentedMap())
+            project["resources"] = [favicon]
 
     quarto_path = dest / "_quarto.yml"
     with quarto_path.open("w", encoding="utf-8") as f:
