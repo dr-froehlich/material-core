@@ -114,20 +114,25 @@ material/ (content repo, consumed separately):
   the project tree) and the installed `material-core` package version. Set as
   the Quarto `project.pre-render` hook in scaffolded projects; writes
   `_variables.yml` (exposes `commit`, `commit_date`, `template` as
-  `{{< var ... >}}`) and `_fingerprint.qmd` (the visible colophon block,
-  included from `index.qmd` for chapters/single and from the introduction
-  deck for slides). Both generated files are listed in the project
-  `.gitignore`. Falls back to `unknown` when `git` is unavailable or the
-  directory is not in a checkout. Opt out per project with `fingerprint: false`
-  in `projects.yml` or `matctl project add --no-fingerprint` /
-  `matctl project modify --no-fingerprint`.
+  `{{< var ... >}}`). The visible colophon block lives inline at the bottom
+  of `index.qmd` (chapters/single) and `slides/01-introduction.qmd`, wrapped
+  in `<!-- matctl:fingerprint-colophon -->` markers so retrofit can find
+  it. The generated `_variables.yml` is listed in the project `.gitignore`.
+  Falls back to `unknown` when `git` is unavailable or the directory is not
+  in a checkout. Opt out per project with `fingerprint: false` in
+  `projects.yml` or `matctl project add --no-fingerprint` /
+  `matctl project modify --no-fingerprint` — when disabled the variables
+  are written as `disabled` so the inline block renders as a clear opt-out
+  marker. (v0.8.4 replaced the v0.8.0–v0.8.3 `{{< include _fingerprint.qmd >}}`
+  design, which crashed in CI because Quarto expands includes during project
+  file enumeration, before the pre-render hook fires.)
 
 ## How this repo is consumed
 
 CI (pinned):
 
 ```bash
-pipx install "git+https://github.com/dr-froehlich/material-core@v0.8.3"
+pipx install "git+https://github.com/dr-froehlich/material-core@v0.8.4"
 matctl link
 quarto render <course>
 ```
@@ -189,4 +194,4 @@ assets bump minor; fixes bump patch.
 
 ## Current status
 
-REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0). REQ-015 DONE (`matctl doctor` command checks chrome-headless-shell for Mermaid → PDF; `matctl doctor --install` auto-installs; CLAUDE.md and authoring.qmd updated). REQ-016 DONE (`matctl fingerprint` pre-render hook emits `_variables.yml` + `_fingerprint.qmd`; per-project commit hash + template version visible in HTML/PDF/slides output; `--no-fingerprint` opt-out — v0.8.0).
+REQ-001 DONE. REQ-003 DONE. REQ-004 DONE (`matctl course add/remove`). REQ-005 DONE (`matctl doc add/remove` + doc template). REQ-006 DONE (`matctl token issue/list/revoke/show` — replaced `manage-tokens.sh`). REQ-007 DONE (group scope: `--group` flag, scope-based Worker authorization, grouped deploy paths). REQ-008 DONE (group lifecycle, titles in manifest, `modify` subcommands). REQ-009 DONE (auto-generated group landing pages, CI deploy job). REQ-010 DONE (`lang: {{LANG}}` in templates, `--lang de|en` required flag on `course add` / `doc add`). REQ-012 DONE (`{.unnumbered}` on `index.qmd` heading, H1 warning in chapter template, authoring.md §2+§3 updated). REQ-014 DONE (brand registry: `brands/` directory, `--brand` flag on add/modify, brand-aware `matctl link/unlink`, brand-neutral `shared/base.scss`). REQ-013 DONE (`matctl project add/remove/modify` with orthogonal structure/slides/brand/lang axes; fragment composer; `course`/`doc` commands removed; manifest auto-migration — v0.7.0). REQ-015 DONE (`matctl doctor` command checks chrome-headless-shell for Mermaid → PDF; `matctl doctor --install` auto-installs; CLAUDE.md and authoring.qmd updated). REQ-016 DONE (`matctl fingerprint` pre-render hook emits `_variables.yml`; inline colophon block in `index.qmd` / slides intro uses `{{< var commit >}}` shortcodes so per-project commit hash + template version are visible in HTML/PDF/slides output; `--no-fingerprint` opt-out — v0.8.0, redesigned in v0.8.4 to drop `_fingerprint.qmd` includes that crashed CI).

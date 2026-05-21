@@ -39,4 +39,8 @@ Slide content: concise, visual, bullet-driven.
 Remind students: details in the script, Chapter 1.
 :::
 
-{{< include _fingerprint.qmd >}}
+<!-- matctl:fingerprint-colophon -->
+## Colophon
+
+*Document fingerprint:* `{{< var commit >}}` ({{< var commit_date >}}) · *template* `{{< var template >}}`
+<!-- /matctl:fingerprint-colophon -->

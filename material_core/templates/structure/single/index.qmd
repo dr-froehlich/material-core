@@ -6,4 +6,8 @@ date:   today
 
 Document body — replace with content.
 
-{{< include _fingerprint.qmd >}}
+<!-- matctl:fingerprint-colophon -->
+## Colophon {.unnumbered}
+
+*Document fingerprint:* `{{< var commit >}}` ({{< var commit_date >}}) · *template* `{{< var template >}}`
+<!-- /matctl:fingerprint-colophon -->

@@ -27,4 +27,8 @@ The slides used in class are available at: [slides/](../slides/)
 
 Personal notes and organizational remarks are not included in this published version.
 
-{{< include _fingerprint.qmd >}}
+<!-- matctl:fingerprint-colophon -->
+## Colophon {.unnumbered}
+
+*Document fingerprint:* `{{< var commit >}}` ({{< var commit_date >}}) · *template* `{{< var template >}}`
+<!-- /matctl:fingerprint-colophon -->
