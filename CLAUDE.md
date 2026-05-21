@@ -175,6 +175,50 @@ to auto-install any that are missing. The binary is cached at
 `~/.local/share/quarto/chrome-headless-shell/` (Linux/WSL) and is version-pinned
 by Quarto (~150 MB one-time download per machine).
 
+## Debugging styled output with headless Chromium
+
+When a styling problem cannot be diagnosed from the source HTML alone
+(CSS cascade conflicts, reveal.js scaling, client-rendered SVG sizing,
+asset 404s), drive the live preview with Playwright + headless Chromium
+and read the actual rendered DOM. This has caught layout root causes
+that source-reading missed — most recently the v0.8.9 mermaid flex
+cascade, where "the SVG is wrong" turned out to be "an unflexed wrapper
+chain ignores reveal's slide height."
+
+Setup (one-time per machine, ~113 MB Chromium download):
+
+```bash
+python3 -m venv /tmp/pw-venv
+/tmp/pw-venv/bin/pip install --quiet playwright
+/tmp/pw-venv/bin/playwright install chromium
+```
+
+Pattern: start `quarto preview <project>` (note the port), then write a
+short Python script that calls `page.goto(URL)`, waits for the relevant
+selector, and uses `page.evaluate()` to extract `getComputedStyle` +
+`getBoundingClientRect` from the element of interest **and every
+ancestor up to a fixed-size container**. For reveal.js slides, navigate
+with `window.Reveal.slide(h, v)` after computing the indices from the
+target section's DOM position. Attach `page.on("response", ...)` to
+catch resource 404s in the same run (this is how the logo-path bug —
+REQ-017 — surfaced alongside the mermaid debug).
+
+Useful probes:
+
+- **SVG sized correctly?** Probe the SVG and every ancestor — most "SVG
+  is wrong" turns out to be "an unflexed wrapper is wrong."
+- **Rule actually applied?** Read computed style. Equal specificity
+  loses to source order — if your override needs `!important`, the
+  computed value will reveal it.
+- **Resource resolves?** The browser asks for paths relative to the
+  rendered HTML, not relative to `_quarto.yml`. Network response logs
+  are authoritative.
+
+Do not commit the inspection scripts. They live in `/tmp` and are
+rewritten per debug case — a generic tool either over-fits today's
+problem or under-fits tomorrow's. The reusable artefact is this
+section, not any one script.
+
 ## Requirements tracking
 
 New requirements, plans, and status changes live in `docs/requirements/` and
