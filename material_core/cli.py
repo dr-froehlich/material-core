@@ -135,6 +135,9 @@ def _scaffold_new_project(
         pkg_root=pkg,
     )
 
+    if slides:
+        _ensure_format_links_slides(dest, True)
+
     add_project(
         manifest,
         name,
@@ -497,6 +500,161 @@ def _set_prerender_hook(dest: Path, enable: bool) -> bool:
         with target.open("w", encoding="utf-8") as f:
             yaml.dump(doc, f)
     return changed
+
+
+_RENDER_GUARD_ENTRIES = ("*.qmd", "!slides/")
+
+
+def _ensure_single_render_guard(dest: Path) -> bool:
+    """Ensure single-structure _quarto.yml restricts the render sweep.
+
+    Without `project.render`, `type: default` recurses into `slides/*.qmd`
+    and renders each with the parent format — Typst then fails on relative
+    `orange-book/lib.typ` imports resolved from slides/.
+
+    Idempotent. If a user has supplied a custom `project.render` list that
+    omits the slides exclusion, leaves it alone and warns.
+    """
+    target = dest / "_quarto.yml"
+    if not target.exists():
+        return False
+    yaml = YAML(typ="rt")
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    with target.open("r", encoding="utf-8") as f:
+        doc = yaml.load(f)
+    if doc is None:
+        return False
+    project = doc.get("project")
+    if project is None or project.get("type") != "default":
+        return False
+    current = project.get("render")
+    if current is None:
+        from ruamel.yaml.comments import CommentedSeq
+        seq = CommentedSeq()
+        for item in _RENDER_GUARD_ENTRIES:
+            seq.append(item)
+        project["render"] = seq
+    elif isinstance(current, list):
+        if "!slides/" in [str(x) for x in current]:
+            return False
+        click.echo(
+            f"warning: {target} has a custom project.render that does not "
+            "exclude slides/ — leaving alone; add '!slides/' by hand to avoid "
+            "Typst recursion errors"
+        )
+        return False
+    else:
+        click.echo(
+            f"warning: {target} project.render is not a list — leaving alone"
+        )
+        return False
+    with target.open("w", encoding="utf-8") as f:
+        yaml.dump(doc, f)
+    return True
+
+
+def _slides_format_link_entry(href: str):
+    from ruamel.yaml.comments import CommentedMap
+    entry = CommentedMap()
+    entry["text"] = "Slides"
+    entry["href"] = href
+    entry["icon"] = "easel"
+    return entry
+
+
+def _is_managed_slides_link(entry) -> bool:
+    return (
+        isinstance(entry, dict)
+        and entry.get("text") == "Slides"
+        and entry.get("icon") == "easel"
+    )
+
+
+def _detect_slides_href(dest: Path) -> str:
+    """First non-partial .qmd under slides/ (sorted), else the scaffold default."""
+    slides_dir = dest / "slides"
+    if slides_dir.exists():
+        qmds = sorted(
+            p for p in slides_dir.glob("*.qmd") if not p.name.startswith("_")
+        )
+        if qmds:
+            return f"slides/{qmds[0].stem}.html"
+    return "slides/01-introduction.html"
+
+
+def _ensure_format_links_slides(dest: Path, slides_enabled: bool) -> bool:
+    """Keep format.html.format-links in sync with the slides flag.
+
+    Idempotent. With slides on: ensures a `[orange-book-typst, {Slides…}]`
+    block is present (href tracks the first slides/*.qmd, so user renames
+    are preserved). With slides off: strips the managed Slides entry and
+    drops the format-links key when only `orange-book-typst` would remain.
+    Leaves unrelated custom format-links entries alone.
+    """
+    target = dest / "_quarto.yml"
+    if not target.exists():
+        return False
+    yaml = YAML(typ="rt")
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    with target.open("r", encoding="utf-8") as f:
+        doc = yaml.load(f)
+    if doc is None:
+        return False
+    fmt = doc.get("format")
+    if not isinstance(fmt, dict) or "html" not in fmt:
+        return False
+    html = fmt["html"]
+    if not isinstance(html, dict):
+        return False
+    current = html.get("format-links")
+
+    if slides_enabled:
+        href = _detect_slides_href(dest)
+        slides_entry = _slides_format_link_entry(href)
+        if current is None:
+            from ruamel.yaml.comments import CommentedSeq
+            seq = CommentedSeq()
+            seq.append("orange-book-typst")
+            seq.append(slides_entry)
+            html["format-links"] = seq
+        elif isinstance(current, list):
+            existing_idx = next(
+                (i for i, e in enumerate(current) if _is_managed_slides_link(e)),
+                None,
+            )
+            if existing_idx is not None:
+                if current[existing_idx].get("href") == href:
+                    return False
+                current[existing_idx]["href"] = href
+            else:
+                current.append(slides_entry)
+        else:
+            click.echo(
+                f"warning: {target} format.html.format-links is not a list — "
+                "skipping slides link wiring"
+            )
+            return False
+    else:
+        if not isinstance(current, list):
+            return False
+        new_list = [e for e in current if not _is_managed_slides_link(e)]
+        if len(new_list) == len(current):
+            return False
+        only_pdf = len(new_list) == 1 and new_list[0] == "orange-book-typst"
+        if not new_list or only_pdf:
+            del html["format-links"]
+        else:
+            from ruamel.yaml.comments import CommentedSeq
+            seq = CommentedSeq()
+            for item in new_list:
+                seq.append(item)
+            html["format-links"] = seq
+
+    with target.open("w", encoding="utf-8") as f:
+        yaml.dump(doc, f)
+    return True
 
 
 def _strip_legacy_fingerprint_include(text: str) -> str:
@@ -943,6 +1101,21 @@ def project_modify(
         update_axes(entry, lang=lang)
         _rewrite_lang(proj_structure, dest, lang)
         changes.append(f"lang → {lang!r}")
+
+    # Single-structure render guard (v0.8.6): retrofit on every modify so
+    # projects scaffolded before the guard pick it up without ceremony.
+    if proj_structure == "single":
+        if _ensure_single_render_guard(dest):
+            changes.append("_quarto.yml: render guard added (slides/ excluded)")
+
+    # Slides format-links retrofit (v0.8.6): keep the html "Slides" link
+    # in sync with the slides flag on every modify.
+    slides_now = bool(entry.get("slides", False))
+    if _ensure_format_links_slides(dest, slides_now):
+        changes.append(
+            "_quarto.yml: format-links Slides entry "
+            + ("added/updated" if slides_now else "removed")
+        )
 
     save_manifest(manifest_path, manifest)
 

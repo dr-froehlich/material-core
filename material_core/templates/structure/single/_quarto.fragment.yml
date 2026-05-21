@@ -2,3 +2,10 @@ project:
   type: default
   output-dir: _output
   pre-render: matctl fingerprint --write
+  # Keep the parent's render sweep out of any slides/ subproject — with
+  # type: default Quarto would otherwise recurse into slides/*.qmd and
+  # render each one with the parent's format (e.g. orange-book-typst),
+  # which fails because Typst resolves relative imports from slides/.
+  render:
+    - "*.qmd"
+    - "!slides/"
