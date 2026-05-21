@@ -1079,6 +1079,11 @@ def project_modify(
                 "{{LANG}}": proj_lang,
                 **brand_placeholders(proj_brand),
             })
+            # Wire the slides-side brand-assets symlink (REQ-017). The
+            # four project-root symlinks already exist; link_project is
+            # idempotent for those without force=, only the new
+            # slides/brand-assets is materially added here.
+            link_project(dest, proj_brand, _package_root())
             entry["slides"] = True
             changes.append("slides → true (overlay added)")
         elif not slides and current_slides:

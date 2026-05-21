@@ -3,11 +3,19 @@
 Private module — used by `matctl course/doc add`, `matctl course/doc modify`,
 and `matctl link/unlink`.
 
-Each project directory gets four symlinks:
+Each project directory gets four symlinks at the project root:
   <project>/_brand.yml    → pkg/brands/<brand>/_brand.yml
   <project>/brand.scss    → pkg/brands/<brand>/brand.scss
   <project>/brand-assets/ → pkg/brands/<brand>/assets/
   <project>/shared/       → pkg/shared/
+
+Plus a fifth symlink that is created only when `slides/` exists:
+  <project>/slides/brand-assets → ../brand-assets
+
+The slides-side symlink uses a relative target so it chains through the
+project-root `brand-assets` symlink — the slide-level `logo:` path baked
+into the rendered HTML resolves at render time and Quarto copies the
+asset into `slides/_output/brand-assets/`.
 """
 
 from __future__ import annotations
@@ -48,6 +56,26 @@ def link_project(
             dst.unlink()
         dst.symlink_to(src)
 
+    # Slides-side symlink: only when slides/ exists. Relative target so it
+    # chains through the project-root brand-assets symlink.
+    slides_dir = project_dir / "slides"
+    if slides_dir.is_dir():
+        dst = slides_dir / "brand-assets"
+        src_rel = Path("../brand-assets")
+        broken = dst.is_symlink() and not dst.exists()
+        if not broken and (dst.is_symlink() or dst.exists()):
+            if force:
+                if dst.is_symlink() or dst.is_file():
+                    dst.unlink()
+                else:
+                    import shutil
+                    shutil.rmtree(dst)
+                dst.symlink_to(src_rel)
+        else:
+            if broken:
+                dst.unlink()
+            dst.symlink_to(src_rel)
+
 
 def unlink_project(project_dir: Path) -> None:
     """Remove per-project symlinks that point into a brands/ or shared/ dir."""
@@ -61,6 +89,13 @@ def unlink_project(project_dir: Path) -> None:
             continue
         if "brands" in target.parts or target.name == "shared":
             dst.unlink()
+
+    # Slides-side symlink: identified by path, not target. Its relative
+    # target ("../brand-assets") would fail the brands/shared substring
+    # check above, and no non-matctl workflow places a symlink here.
+    slides_link = project_dir / "slides" / "brand-assets"
+    if slides_link.is_symlink():
+        slides_link.unlink()
 
 
 def relink_project(project_dir: Path, new_brand: str, pkg_root: Path) -> None:
