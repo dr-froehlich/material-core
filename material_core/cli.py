@@ -793,6 +793,35 @@ def _ensure_slides_gitignore(dest: Path) -> bool:
     return True
 
 
+_BOOK_GITIGNORE_LINES = (
+    "# Book / single-doc build artifacts (Quarto drops <stem>_files/ next to",
+    "# each source .qmd — mermaid figure intermediates regenerate on every",
+    "# render and dirty `git status` in consumer repos, which trips the",
+    "# fingerprint hook's -dirty suffix).",
+    "*_files/",
+    "chapters/*.html",
+    "chapters/*.typ",
+)
+
+
+def _ensure_book_gitignore(dest: Path) -> bool:
+    """Append book/single-doc build-artifact ignore lines if missing. Idempotent."""
+    gi = dest / ".gitignore"
+    existing = gi.read_text(encoding="utf-8") if gi.exists() else ""
+    live = [line for line in _BOOK_GITIGNORE_LINES if not line.startswith("#")]
+    have = set(existing.splitlines())
+    if all(line in have for line in live):
+        return False
+    prefix = existing
+    if prefix and not prefix.endswith("\n"):
+        prefix += "\n"
+    if prefix and not prefix.endswith("\n\n"):
+        prefix += "\n"
+    new_text = prefix + "\n".join(_BOOK_GITIGNORE_LINES) + "\n"
+    gi.write_text(new_text, encoding="utf-8")
+    return True
+
+
 def _retrofit_fingerprint(dest: Path, enable: bool, slides: bool) -> list[str]:
     """Wire (or unwire) all fingerprint touchpoints in an existing project."""
     notes: list[str] = []
@@ -1155,6 +1184,16 @@ def project_modify(
     # *_files/ resource bundles). Only meaningful when slides exist.
     if slides_now and _ensure_slides_gitignore(dest):
         changes.append(".gitignore: slides build-artifact entries added")
+
+    # Book / single-doc .gitignore retrofit (v0.9.1): ignore *_files/
+    # bundles Quarto drops next to each source .qmd, plus chapters/*.html
+    # and chapters/*.typ for parallelism with the slides block. Mirrors
+    # the slides retrofit but applies to every project — the artifact
+    # lives at project root for single-doc and under chapters/ for the
+    # chapters structure, and either way leaks into `git status` and
+    # trips the fingerprint -dirty suffix in CI.
+    if _ensure_book_gitignore(dest):
+        changes.append(".gitignore: book/single-doc build-artifact entries added")
 
     save_manifest(manifest_path, manifest)
 
