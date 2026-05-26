@@ -5,6 +5,15 @@
 // which must be loaded before this file.
 // ============================================================
 
+/*-- scss:defaults --*/
+
+// Reveal body font: Quarto's $presentation-font-size-root default is 40 px,
+// which overflows typical content slides (tables, code blocks, two-column
+// layouts) — almost every deck ends up sprinkling `{.smaller}` as a
+// workaround. 32 px gives content room while staying readable from the
+// back row; `{.smaller}` (0.7×) still works for genuinely dense slides.
+$presentation-font-size-root: 32px !default;
+
 /*-- scss:rules --*/
 
 // ── HTML Book ───────────────────────────────────────────────
