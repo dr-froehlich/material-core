@@ -18,5 +18,6 @@
 | REQ-015 | Make Mermaid → PDF (Typst) dependency explicit and self-installing | DONE | [REQ-015](REQ-015.md) | – |
 | REQ-016 | Document identity fingerprint — per-project commit hash and template version in rendered output | DONE | [REQ-016](REQ-016.md) | REQ-013, REQ-014 |
 | REQ-017 | Wire brand symlinks into `<project>/slides/` so logo, favicon, and theme resolve at slide render time | DONE | [REQ-017](REQ-017.md) | REQ-013, REQ-014 |
+| REQ-018 | Multilingual projects — a project may carry the same content in more than one language | OPEN | [REQ-018](REQ-018.md) | REQ-008, REQ-009, REQ-013 |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)
