@@ -25,11 +25,18 @@
 
 #show image: it => layout(size => context {
   let m = measure(it)
-  // Limiting factor across width and height; `calc.min(1, …)` never upscales.
-  let f = calc.min(1, size.width / m.width, size.height / m.height)
-  if f < 1 {
-    scale(x: f * 100%, y: f * 100%, origin: top + left, reflow: true, it)
-  } else { it }
+  // Some images (notably zero-intrinsic-size SVGs) measure to 0 in this
+  // context; guard the division so they pass through untouched instead of
+  // crashing the compile with "cannot divide by zero".
+  if m.width <= 0pt or m.height <= 0pt {
+    it
+  } else {
+    // Limiting factor across width and height; `calc.min(1, …)` never upscales.
+    let f = calc.min(1, size.width / m.width, size.height / m.height)
+    if f < 1 {
+      scale(x: f * 100%, y: f * 100%, origin: top + left, reflow: true, it)
+    } else { it }
+  }
 })
 
 #show: book.with(
