@@ -1,9 +1,16 @@
 #import "orange-book/lib.typ": book, part, chapter, appendices
 
-// Quarto's typst output stamps Mermaid PNGs with pixel-derived absolute
-// width/height (e.g. 14in) that overflow A4 text blocks. Shrink the body of
-// any figure wider than the available text block; keep the caption at its
-// original size.
+// Quarto's typst output stamps Mermaid PNGs (and other raster images) with a
+// pixel-derived absolute width/height (e.g. 7in × 10in) that overflows the A4
+// text region. There are two emission shapes to cover:
+//   * captioned diagrams become `#figure(...)` — handled by the figure rule;
+//   * uncaptioned diagrams become a bare `#box(image(...))` — handled by the
+//     image rule, which is what most Mermaid blocks actually hit.
+// Both scale the offending content down to fit the available space; neither
+// upscales, so already-small images keep their authored size. The image rule
+// also runs while the figure rule measures its body, so a captioned diagram is
+// fitted once (by the image rule) and the figure rule then no-ops — no double
+// scaling.
 #show figure: it => layout(size => context {
   let m = measure(it.body)
   if m.width > size.width {
@@ -13,6 +20,15 @@
       #v(it.gap, weak: true)
       #it.caption
     ]
+  } else { it }
+})
+
+#show image: it => layout(size => context {
+  let m = measure(it)
+  // Limiting factor across width and height; `calc.min(1, …)` never upscales.
+  let f = calc.min(1, size.width / m.width, size.height / m.height)
+  if f < 1 {
+    scale(x: f * 100%, y: f * 100%, origin: top + left, reflow: true, it)
   } else { it }
 })
 

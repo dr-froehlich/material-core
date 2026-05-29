@@ -16,6 +16,10 @@ format:
     toc-depth:          3
     number-sections:    true
     smooth-scroll:      true
+    # Mermaid's default theme renders dark-blue text on a grey node fill that is
+    # hard to read against the brand surface; `neutral` is the grayscale theme.
+    mermaid:
+      theme: neutral
   orange-book-typst:
     output-file:      "{{PROJECT_NAME}}.pdf"
     number-sections:  true
