@@ -19,5 +19,8 @@
 | REQ-016 | Document identity fingerprint — per-project commit hash and template version in rendered output | DONE | [REQ-016](REQ-016.md) | REQ-013, REQ-014 |
 | REQ-017 | Wire brand symlinks into `<project>/slides/` so logo, favicon, and theme resolve at slide render time | DONE | [REQ-017](REQ-017.md) | REQ-013, REQ-014 |
 | REQ-018 | Multilingual projects — a project may carry the same content in more than one language | OPEN | [REQ-018](REQ-018.md) | REQ-008, REQ-009, REQ-013 |
+| REQ-019 | Shareable tokenized links and QR codes for projects and groups | OPEN | [REQ-019](REQ-019.md) | REQ-006, REQ-007, REQ-009 |
+| REQ-020 | External project manuals — surface a public project's handbook under the `manuals` group from a single canonical source | OPEN | [REQ-020](REQ-020.md) | REQ-005, REQ-009, REQ-013 |
+| REQ-021 | De-quartizer — export a Quarto `.qmd` source tree to clean, self-contained GFM | OPEN | [REQ-021](REQ-021.md) | – |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)
