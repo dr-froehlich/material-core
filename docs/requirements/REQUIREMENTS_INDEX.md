@@ -22,5 +22,6 @@
 | REQ-019 | Shareable tokenized links and QR codes for projects and groups | OPEN | [REQ-019](REQ-019.md) | REQ-006, REQ-007, REQ-009 |
 | REQ-020 | External project manuals — surface a public project's handbook under the `manuals` group from a single canonical source | OPEN | [REQ-020](REQ-020.md) | REQ-005, REQ-009, REQ-013 |
 | REQ-021 | De-quartizer — export a Quarto `.qmd` source tree to clean, self-contained GFM | OPEN | [REQ-021](REQ-021.md) | – |
+| REQ-022 | Rebrand the tooling as DocSteward (repo/package/CLI naming) | DEFERRED | [REQ-022](REQ-022.md) | – |
 
 New requirement template: [REQ-xxx.md](REQ-xxx.md)
