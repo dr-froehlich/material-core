@@ -580,8 +580,10 @@
       #text(size: title-main-1, weight: "black", title)
       #v(1cm, weak: true)
       #text(size: title-main-2, subtitle)
-      #v(1cm, weak: true)
-      #text(size: title-main-3, weight: "bold", author)
+      #if author != () and author != none and author != "" [
+        #v(1cm, weak: true)
+        #text(size: title-main-3, weight: "bold", author)
+      ]
     ]))
   ]
   if (copyright!=none){

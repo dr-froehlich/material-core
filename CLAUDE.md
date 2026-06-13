@@ -104,6 +104,73 @@ material/ (content repo, consumed separately):
   Legacy `type: course` / `type: doc` entries in `projects.yml` are migrated to
   `type: project` + `structure` + `slides` + `brand` + `lang` automatically on
   the next `project modify` or `project add` that triggers a manifest save.
+
+  **External manuals (REQ-020).** A public project's handbook can be surfaced
+  under the `manuals` group while its canonical source stays in the public
+  repo. Scaffold one with the `--external-*` flags on `project add`:
+
+  ```
+  matctl project add devsteward-manual \
+    --external-source https://github.com/dr-froehlich/devsteward.git \
+    --external-path devsteward/handbook --external-ref <tag> \
+    --external-entry handbook.qmd \
+    --structure single --no-slides --brand pf --lang en \
+    --group manuals --title "The DevSteward Handbook"
+  ```
+
+  `--external-source` forces `--structure single --no-slides` (the authoring
+  contract: external manuals are a single Quarto document, optionally
+  `{{< include >}}`-ing `_`-prefixed fragments) and rejects `--slides` /
+  `--subtitle` / `--structure chapters`. The manifest entry is `type: project`
+  with an added `external:` sub-map (`source`, `path`, `ref`, optional `entry`)
+  and `fingerprint: false` (the REQ-016 colophon is meaningless for content
+  whose history lives upstream):
+
+  ```yaml
+  - name: devsteward-manual
+    type: project
+    title: The DevSteward Handbook
+    group: manuals
+    structure: single
+    slides: false
+    brand: pf
+    lang: en
+    external:
+      source: https://github.com/dr-froehlich/devsteward.git
+      path: devsteward/handbook
+      ref: <pinned-tag>
+      entry: handbook.qmd
+    fingerprint: false
+  ```
+
+  **Committed-wrapper / gitignored-content split.** `material` commits only the
+  branded wrapper — `_quarto.yml`, an ignore-all/allow-list `.gitignore`, and
+  the Typst render scaffold (`orange-book/`, `assets/`) — and **zero handbook
+  bytes**. The fetched `index.qmd` (the renamed `<entry>`), `_`-prefixed
+  fragments, and any upstream assets are gitignored. Brand symlinks are
+  gitignored repo-wide by `material`. The wrapper's `.gitignore`:
+
+  ```gitignore
+  /*
+  !/.gitignore
+  !/_quarto.yml
+  !/orange-book
+  !/assets
+  ```
+
+  Re-pin a manual to a newer ref with `matctl project modify <name>
+  --external-ref <tag>` (force re-fetches at the new pin). `--external-source` /
+  `--external-path` / `--external-entry` likewise re-point and re-fetch.
+- `matctl external fetch [<name>] [--all] [--force]` — the build-time fetch
+  primitive (REQ-020). Shallow-clones the pinned ref, copies the `path/` subtree
+  into the project dir renaming `<entry>` → `index.qmd` (one front-matter block
+  survives, vs an `{{< include >}}` that would splice a second `---`). Idempotent
+  without `--force` (skips when `index.qmd` is present) — the path `matctl link`
+  and CI rely on. `matctl link` runs an implicit skip-if-present fetch for every
+  external entry so a fresh `material` checkout populates and previews
+  immediately; CI calls `matctl external fetch --all` explicitly after
+  `matctl link`. Ref bumps are always explicit (`--force` / `project modify`),
+  never a silent auto-update.
 - `matctl token issue <course> <label> [--days 365]` — generate a token, write
   it to Cloudflare KV, and print the ready-to-paste iLearn URL.
 - `matctl token list [<course>]` — table of all tokens (or filtered to one

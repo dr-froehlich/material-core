@@ -71,6 +71,7 @@ def load_manifest(path: Path) -> CommentedMap:
             f"{path} is missing the top-level `projects:` list"
         )
     _normalise_legacy(doc)
+    _validate_external(doc)
     return doc
 
 
@@ -132,6 +133,117 @@ def add_project(
     if not fingerprint:
         entry["fingerprint"] = False
     doc["projects"].append(entry)
+
+
+def is_external(entry: CommentedMap) -> bool:
+    """True if a project entry sources its content from an external repo."""
+    return "external" in entry
+
+
+_EXTERNAL_REQUIRED = ("source", "path", "ref")
+
+
+def _validate_external(doc: CommentedMap) -> None:
+    """Reject malformed external-manual entries. Called on every load_manifest.
+
+    An external entry must carry source/path/ref and must be a single-structure,
+    deckless project (the external-manual authoring contract — see REQ-020 D8).
+    """
+    for entry in doc.get("projects", []):
+        if not isinstance(entry, dict) or "external" not in entry:
+            continue
+        name = entry.get("name", "<unnamed>")
+        ext = entry["external"]
+        if not isinstance(ext, dict):
+            raise click.ClickException(
+                f"external entry {name!r}: `external:` must be a mapping"
+            )
+        missing = [k for k in _EXTERNAL_REQUIRED if not ext.get(k)]
+        if missing:
+            raise click.ClickException(
+                f"external entry {name!r}: `external:` missing required "
+                f"key(s): {', '.join(missing)}"
+            )
+        if entry.get("structure", "single") != "single":
+            raise click.ClickException(
+                f"external entry {name!r}: external manuals must be "
+                f"`structure: single` (got {entry.get('structure')!r})"
+            )
+        if entry.get("slides"):
+            raise click.ClickException(
+                f"external entry {name!r}: external manuals never carry slides "
+                "(`slides: true` is not allowed)"
+            )
+
+
+def add_external_manual(
+    doc: CommentedMap,
+    name: str,
+    *,
+    title: str,
+    source: str,
+    path: str,
+    ref: str,
+    entry: str | None = None,
+    brand: str,
+    lang: str,
+    group: str | None = None,
+) -> None:
+    """Append an external-manual entry to the manifest.
+
+    Mirrors add_project but forces the single/deckless/no-fingerprint axes and
+    adds the `external:` block (see REQ-020 D1/D8).
+    """
+    if name in project_names(doc):
+        raise ValueError(f"{name} already in manifest")
+    obj = CommentedMap()
+    obj["name"] = name
+    obj["type"] = "project"
+    obj["title"] = title
+    if group is not None:
+        obj["group"] = group
+    obj["structure"] = "single"
+    obj["slides"] = False
+    obj["brand"] = brand
+    obj["lang"] = lang
+    external = CommentedMap()
+    external["source"] = source
+    external["path"] = path
+    external["ref"] = ref
+    if entry is not None:
+        external["entry"] = entry
+    obj["external"] = external
+    # External manuals: fingerprint is meaningless (history lives upstream).
+    obj["fingerprint"] = False
+    doc["projects"].append(obj)
+
+
+def update_external(
+    entry: CommentedMap,
+    *,
+    source: str | None = None,
+    path: str | None = None,
+    ref: str | None = None,
+    entry_qmd: str | None = None,
+) -> list[str]:
+    """Re-pin an external entry's source/path/ref/entry. Returns change list."""
+    if "external" not in entry:
+        raise ValueError(f"{entry.get('name')!r} is not an external manual")
+    ext = entry["external"]
+    changes: list[str] = []
+    if source is not None:
+        ext["source"] = source
+        changes.append(f"external.source → {source!r}")
+    if path is not None:
+        ext["path"] = path
+        changes.append(f"external.path → {path!r}")
+    if ref is not None:
+        ext["ref"] = ref
+        changes.append(f"external.ref → {ref!r}")
+    if entry_qmd is not None:
+        ext["entry"] = entry_qmd
+        changes.append(f"external.entry → {entry_qmd!r}")
+    return changes
 
 
 def available_brands(pkg_root: Path) -> list[str]:

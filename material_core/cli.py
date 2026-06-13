@@ -23,17 +23,20 @@ from ._brand_resolve import (
 )
 from ._cloudflare import KVClient, load_credentials
 from ._compose import compose
+from ._external import ExternalFetchError, fetch_external
 from ._fingerprint import resolve as resolve_fingerprint
 from ._fingerprint import write_variables
 from ._landing import regenerate_group
 from ._projects import (
     PROJECTS_FILE,
+    add_external_manual,
     add_group,
     add_project,
     available_brands,
     dependents_of_group,
     find_entry,
     group_exists,
+    is_external,
     load_manifest,
     project_names,
     remove_group,
@@ -41,6 +44,7 @@ from ._projects import (
     resolve_brand,
     save_manifest,
     update_axes,
+    update_external,
 )
 from ._scaffold import (
     substitute_placeholders,
@@ -158,6 +162,125 @@ def _scaffold_new_project(
     click.echo(f"  git add {name}/ {PROJECTS_FILE}")
     click.echo(f"  git commit -m 'Add project: {name}'")
     click.echo("  git push")
+
+
+# External manual wrapper .gitignore: ignore-all then allow-list. Arbitrary
+# fetched filenames (fragments, images) need no enumeration; only the branded
+# wrapper is committed. Brand symlinks are gitignored repo-wide in `material`
+# (see REQ-020 D2 / Phase 0.3), so they are not allow-listed here.
+_EXTERNAL_GITIGNORE = """\
+# External manual: handbook content is fetched at build time from the source
+# repo pinned in projects.yml (`matctl external fetch`). Only the branded
+# wrapper — the Quarto config and the Typst render-support scaffold — is
+# committed here; no handbook content is the authoritative copy in this repo.
+/*
+!/.gitignore
+!/_quarto.yml
+!/orange-book
+!/assets
+"""
+
+
+def _fetch_external_entry(project_dir: Path, entry, *, force: bool) -> str | None:
+    """Fetch one manifest entry's external content; map errors to ClickException."""
+    ext = entry["external"]
+    try:
+        return fetch_external(
+            project_dir,
+            source=ext["source"],
+            path=ext["path"],
+            ref=ext["ref"],
+            entry=ext.get("entry"),
+            force=force,
+        )
+    except ExternalFetchError as exc:
+        raise click.ClickException(
+            f"external fetch failed for {entry['name']!r} "
+            f"({ext['source']}@{ext['ref']}): {exc}"
+        ) from None
+
+
+def _scaffold_external_manual(
+    name: str,
+    title: str,
+    brand: str,
+    lang: str,
+    source: str,
+    path: str,
+    ref: str,
+    entry: str | None,
+    group: str | None = None,
+) -> None:
+    """Scaffold an external manual: branded single-doc wrapper + initial fetch."""
+    _validate_name(name)
+    if group is not None:
+        _validate_name(group, "group")
+
+    cwd = Path.cwd()
+    manifest_path = cwd / PROJECTS_FILE
+    manifest = load_manifest(manifest_path)
+
+    if name in project_names(manifest):
+        raise click.ClickException(f"{name} already registered in {PROJECTS_FILE}")
+    if group is not None and not group_exists(manifest, group):
+        raise click.ClickException(
+            f"group {group!r} not found in {PROJECTS_FILE} — "
+            f"create it first with `matctl group add {group} --title ...`"
+        )
+
+    dest = cwd / name
+    if dest.exists():
+        raise click.ClickException(f"{dest} already exists")
+
+    pkg = _package_root()
+    placeholders = {
+        "{{PROJECT_NAME}}": name,
+        "{{PROJECT_TITLE}}": title,
+        "{{PROJECT_SUBTITLE}}": "",
+        "{{LANG}}": lang,
+    }
+    # External manuals are always single-structure, deckless. compose lays
+    # down a branded _quarto.yml + a placeholder index.qmd (harmless — it is
+    # gitignored and overwritten by the first fetch) and wires brand symlinks.
+    compose(
+        dest,
+        structure="single",
+        slides=False,
+        brand=brand,
+        placeholders=placeholders,
+        pkg_root=pkg,
+    )
+
+    # Replace compose's default project .gitignore with the D2 allow-list.
+    (dest / ".gitignore").write_text(_EXTERNAL_GITIGNORE, encoding="utf-8")
+
+    add_external_manual(
+        manifest,
+        name,
+        title=title,
+        source=source,
+        path=path,
+        ref=ref,
+        entry=entry,
+        brand=brand,
+        lang=lang,
+        group=group,
+    )
+    save_manifest(manifest_path, manifest)
+
+    new_entry = find_entry(manifest, name)
+    summary = _fetch_external_entry(dest, new_entry, force=True)
+    _regenerate_affected_groups(manifest, group)
+
+    click.echo(f"created external manual {name}")
+    if summary:
+        click.echo(f"  {summary}")
+    click.echo("next steps:")
+    click.echo(f"  quarto preview {name}")
+    click.echo(f"  git add {name}/_quarto.yml {name}/.gitignore {PROJECTS_FILE}")
+    click.echo(f"  git commit -m 'Add external manual: {name}'")
+    click.echo("  note: fetched handbook content is gitignored — only the")
+    click.echo("        wrapper and manifest entry are committed.")
 
 
 def _remove_project(name: str, yes: bool) -> None:
@@ -920,6 +1043,29 @@ def project_cmd() -> None:
     show_default=True,
     help="Render the per-project commit + template colophon (REQ-016).",
 )
+@click.option(
+    "--external-source",
+    default=None,
+    help="External manual: git URL to fetch content from at build time (REQ-020). "
+         "Implies --structure single, --no-slides.",
+)
+@click.option(
+    "--external-path",
+    default=None,
+    help="External manual: subtree within the source repo holding the manual "
+         "('.' for repo root).",
+)
+@click.option(
+    "--external-ref",
+    default=None,
+    help="External manual: pinned tag/branch/sha to fetch.",
+)
+@click.option(
+    "--external-entry",
+    default=None,
+    help="External manual: top-level .qmd to render (default: the lone "
+         "non-underscore .qmd in the path).",
+)
 def project_add(
     name: str,
     structure: str,
@@ -930,8 +1076,44 @@ def project_add(
     subtitle: str,
     group: str | None,
     fingerprint: bool,
+    external_source: str | None,
+    external_path: str | None,
+    external_ref: str | None,
+    external_entry: str | None,
 ) -> None:
     """Scaffold a new project and register it in projects.yml."""
+    if external_source is not None:
+        # External manual path: forced single/deckless by contract.
+        if structure != "single":
+            raise click.UsageError(
+                "external manuals are single-doc only — pass --structure single"
+            )
+        if slides:
+            raise click.UsageError("external manuals never carry slides — pass --no-slides")
+        if subtitle:
+            raise click.UsageError("--subtitle is not meaningful for an external manual")
+        if not external_path or not external_ref:
+            raise click.UsageError(
+                "--external-source requires --external-path and --external-ref"
+            )
+        resolved_title = title or title_case_from_slug(name)
+        _scaffold_external_manual(
+            name=name,
+            title=resolved_title,
+            brand=brand,
+            lang=lang,
+            source=external_source,
+            path=external_path,
+            ref=external_ref,
+            entry=external_entry,
+            group=group,
+        )
+        return
+
+    if external_path or external_ref or external_entry:
+        raise click.UsageError(
+            "--external-path/--external-ref/--external-entry require --external-source"
+        )
     if subtitle and structure == "single":
         raise click.UsageError("--subtitle is only meaningful with --structure chapters")
     resolved_title = title or title_case_from_slug(name)
@@ -999,6 +1181,30 @@ def project_remove(name: str, yes: bool) -> None:
     default=None,
     help="Toggle the per-project commit + template colophon (REQ-016).",
 )
+@click.option(
+    "--external-source",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="External manual: re-point the source git URL (triggers a re-fetch).",
+)
+@click.option(
+    "--external-path",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="External manual: re-point the subtree path (triggers a re-fetch).",
+)
+@click.option(
+    "--external-ref",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="External manual: re-pin the ref (triggers a --force re-fetch).",
+)
+@click.option(
+    "--external-entry",
+    default=_UNSET,
+    type=click.UNPROCESSED,
+    help="External manual: change the rendered entry .qmd (triggers a re-fetch).",
+)
 def project_modify(
     name: str,
     title: object,
@@ -1008,6 +1214,10 @@ def project_modify(
     lang: object,
     structure: object,
     fingerprint_flag: bool | None,
+    external_source: object,
+    external_path: object,
+    external_ref: object,
+    external_entry: object,
 ) -> None:
     """Modify a project's title, group, brand, language, or slides presence."""
     if structure is not _UNSET:
@@ -1016,13 +1226,15 @@ def project_modify(
             "create a new project and move content by hand"
         )
 
+    external_flags = (external_source, external_path, external_ref, external_entry)
     has_change = any(
-        x is not _UNSET for x in (title, group, brand, lang)
+        x is not _UNSET for x in (title, group, brand, lang, *external_flags)
     ) or slides is not None or fingerprint_flag is not None
     if not has_change:
         raise click.UsageError(
             "specify at least one of --title, --group, --brand, "
-            "--slides/--no-slides, --lang, --fingerprint/--no-fingerprint"
+            "--slides/--no-slides, --lang, --fingerprint/--no-fingerprint, "
+            "--external-source/--external-path/--external-ref/--external-entry"
         )
 
     cwd = Path.cwd()
@@ -1036,10 +1248,21 @@ def project_modify(
             f"{name} is type {entry.get('type')!r}, not 'project'"
         )
 
+    external = is_external(entry)
+    if not external and any(x is not _UNSET for x in external_flags):
+        raise click.ClickException(
+            f"{name} is not an external manual — --external-* flags do not apply"
+        )
+    if external and slides:
+        raise click.ClickException(
+            "external manuals never carry slides — --slides does not apply"
+        )
+
     proj_structure = entry.get("structure", "chapters")
     old_group = entry.get("group")
     changes: list[str] = []
     group_changed = False
+    refetch = False
     dest = cwd / name
 
     # --title
@@ -1047,7 +1270,11 @@ def project_modify(
         if not isinstance(title, str) or title == "":
             raise click.ClickException("--title must not be empty")
         entry["title"] = title
-        _rewrite_title(proj_structure, dest, title)
+        # External manuals: the rendered title comes from the fetched
+        # front matter; the manifest title drives the landing page only
+        # (D6). Don't rewrite the gitignored, fetch-regenerated index.qmd.
+        if not external:
+            _rewrite_title(proj_structure, dest, title)
         changes.append(f"title → {title!r}")
 
     # --group
@@ -1164,38 +1391,59 @@ def project_modify(
         _rewrite_lang(proj_structure, dest, lang)
         changes.append(f"lang → {lang!r}")
 
-    # Single-structure render guard (v0.8.6): retrofit on every modify so
-    # projects scaffolded before the guard pick it up without ceremony.
-    if proj_structure == "single":
-        if _ensure_single_render_guard(dest):
-            changes.append("_quarto.yml: render guard added (slides/ excluded)")
-
-    # Slides format-links retrofit (v0.8.6): keep the html "Slides" link
-    # in sync with the slides flag on every modify.
-    slides_now = bool(entry.get("slides", False))
-    if _ensure_format_links_slides(dest, slides_now):
-        changes.append(
-            "_quarto.yml: format-links Slides entry "
-            + ("added/updated" if slides_now else "removed")
+    # --external-source / --external-path / --external-ref / --external-entry
+    if external and any(x is not _UNSET for x in external_flags):
+        ext_changes = update_external(
+            entry,
+            source=external_source if external_source is not _UNSET else None,
+            path=external_path if external_path is not _UNSET else None,
+            ref=external_ref if external_ref is not _UNSET else None,
+            entry_qmd=external_entry if external_entry is not _UNSET else None,
         )
+        changes.extend(ext_changes)
+        refetch = True
 
-    # Slides .gitignore retrofit (v0.8.7): ignore build artifacts that
-    # Quarto drops next to the source .qmd (revealjs html, Typst .typ,
-    # *_files/ resource bundles). Only meaningful when slides exist.
-    if slides_now and _ensure_slides_gitignore(dest):
-        changes.append(".gitignore: slides build-artifact entries added")
+    # External manuals own a committed ignore-all/allow-list .gitignore (D2)
+    # and a fetch-managed tree, so the build-artifact gitignore and slides
+    # retrofits below don't apply — they would only pollute the wrapper.
+    if not external:
+        # Single-structure render guard (v0.8.6): retrofit on every modify so
+        # projects scaffolded before the guard pick it up without ceremony.
+        if proj_structure == "single":
+            if _ensure_single_render_guard(dest):
+                changes.append("_quarto.yml: render guard added (slides/ excluded)")
 
-    # Book / single-doc .gitignore retrofit (v0.9.1): ignore *_files/
-    # bundles Quarto drops next to each source .qmd, plus chapters/*.html
-    # and chapters/*.typ for parallelism with the slides block. Mirrors
-    # the slides retrofit but applies to every project — the artifact
-    # lives at project root for single-doc and under chapters/ for the
-    # chapters structure, and either way leaks into `git status` and
-    # trips the fingerprint -dirty suffix in CI.
-    if _ensure_book_gitignore(dest):
-        changes.append(".gitignore: book/single-doc build-artifact entries added")
+        # Slides format-links retrofit (v0.8.6): keep the html "Slides" link
+        # in sync with the slides flag on every modify.
+        slides_now = bool(entry.get("slides", False))
+        if _ensure_format_links_slides(dest, slides_now):
+            changes.append(
+                "_quarto.yml: format-links Slides entry "
+                + ("added/updated" if slides_now else "removed")
+            )
+
+        # Slides .gitignore retrofit (v0.8.7): ignore build artifacts that
+        # Quarto drops next to the source .qmd (revealjs html, Typst .typ,
+        # *_files/ resource bundles). Only meaningful when slides exist.
+        if slides_now and _ensure_slides_gitignore(dest):
+            changes.append(".gitignore: slides build-artifact entries added")
+
+        # Book / single-doc .gitignore retrofit (v0.9.1): ignore *_files/
+        # bundles Quarto drops next to each source .qmd, plus chapters/*.html
+        # and chapters/*.typ for parallelism with the slides block. Mirrors
+        # the slides retrofit but applies to every project — the artifact
+        # lives at project root for single-doc and under chapters/ for the
+        # chapters structure, and either way leaks into `git status` and
+        # trips the fingerprint -dirty suffix in CI.
+        if _ensure_book_gitignore(dest):
+            changes.append(".gitignore: book/single-doc build-artifact entries added")
 
     save_manifest(manifest_path, manifest)
+
+    if refetch:
+        summary = _fetch_external_entry(dest, entry, force=True)
+        if summary:
+            changes.append(summary)
 
     if group_changed:
         _regenerate_affected_groups(manifest, old_group, entry.get("group"))
@@ -1210,6 +1458,56 @@ def project_modify(
             "it will become stale on the next CI run and must be cleaned up "
             "manually. See docs/administration.md."
         )
+
+
+# ---------------------------------------------------------------------------
+# external group
+# ---------------------------------------------------------------------------
+
+@main.group("external")
+def external_cmd() -> None:
+    """Manage external manuals (build-time fetch from a pinned source repo)."""
+
+
+@external_cmd.command("fetch")
+@click.argument("name", required=False, callback=_strip_trailing_slash)
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch every external manual.")
+@click.option("--force", is_flag=True, help="Re-fetch even if content is present.")
+def external_fetch(name: str | None, fetch_all: bool, force: bool) -> None:
+    """Fetch external-manual content into the project directory.
+
+    Idempotent without --force: skips entries whose content is already
+    present (the path `matctl link` and CI rely on)."""
+    if bool(name) == fetch_all:
+        raise click.UsageError("pass exactly one of <name> or --all")
+
+    cwd = Path.cwd()
+    manifest = load_manifest(cwd / PROJECTS_FILE)
+
+    if fetch_all:
+        entries = [e for e in manifest["projects"] if is_external(e)]
+        if not entries:
+            click.echo("no external manuals in manifest")
+            return
+        fetched = 0
+        for entry in entries:
+            project_dir = cwd / entry["name"]
+            summary = _fetch_external_entry(project_dir, entry, force=force)
+            if summary:
+                click.echo(summary)
+                fetched += 1
+            else:
+                click.echo(f"skipped {entry['name']} (content present)")
+        click.echo(f"fetched {fetched} of {len(entries)} external manual(s)")
+        return
+
+    entry = find_entry(manifest, name)
+    if entry is None:
+        raise click.ClickException(f"{name} not found in {PROJECTS_FILE}")
+    if not is_external(entry):
+        raise click.ClickException(f"{name} is not an external manual")
+    summary = _fetch_external_entry(cwd / name, entry, force=force)
+    click.echo(summary if summary else f"skipped {name} (content present; --force to re-fetch)")
 
 
 # ---------------------------------------------------------------------------
@@ -1244,6 +1542,13 @@ def link(force: bool) -> None:
                 continue
             link_project(project_dir, brand, pkg, force=force)
             click.echo(f"linked {name} → brand:{brand}")
+            # External manuals: populate fetched content if absent (D5).
+            # Skip-if-present keeps repeat `link` runs fast; ref bumps are
+            # explicit (`external fetch --force` / `project modify`).
+            if is_external(entry):
+                summary = _fetch_external_entry(project_dir, entry, force=False)
+                if summary:
+                    click.echo(f"  {summary}")
         click.echo("linked shared/")
     elif parent_manifest.exists():
         manifest = load_manifest(parent_manifest)
